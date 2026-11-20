@@ -40,7 +40,9 @@ function authView(which) { show("auth"); for (const f of ["loginForm", "mfaForm"
   if (err) {
     authMsg(/signup|not allowed|disabled/i.test(err)
       ? "Bu Google hesabı sistemde tanımlı değil. Yöneticinizden bu e-posta adresiyle hesap açmasını isteyin."
-      : "Google ile giriş tamamlanamadı: " + err);
+      : /expired|invalid/i.test(err)
+        ? "Bu bağlantı daha önce kullanılmış ya da süresi dolmuş. E-posta adresinizi yazıp “Şifremi unuttum”a basın; yeni bağlantı gönderilir."
+        : "Giriş tamamlanamadı: " + err);
     history.replaceState(null, "", location.pathname);
   }
 }
