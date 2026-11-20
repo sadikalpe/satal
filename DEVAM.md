@@ -7,7 +7,7 @@
 - Google ile giriş kapalı (düğme gizli). Claude özellikleri kapalı (API anahtarı yok).
 - Supabase yönetim kodu (sbp_...) iptal edildi; yeni kod gerekiyor.
 
-## Bu dalda (`ekip-eslesmeleri`) bekleyen, henüz yayınlanmamış değişiklik
+## Son eklenenler (tarayıcı testinden geçti, yayında)
 1. Eşleşme listesinde her alıcının altında belirgin "Danışmanı: Ad Soyad (e-posta)" satırı;
    portföy başlığında "Portföyü giren: ..." ve kaç alıcının başka danışmanlarda olduğu.
 2. "Ekip eşleşmeleri" sekmesi artık yöneticinin portföyleri dahil bütün portföyleri tarıyor:
@@ -17,7 +17,7 @@
    bütçeler görüldü; büyük ihtimalle TL tutarlar dolar kutusuna yazılmış).
 
 ## Yarın yapılacaklar
-- Bu dalın tarayıcı testini bitirip `main`e almak (main'e gelen her değişiklik siteyi otomatik günceller).
+- Kullanıcıyla Ekip eşleşmeleri ekranını birlikte kontrol etmek.
 - Yeni Supabase erişim kodu istemek (kullanıcı onayladı): güvenli forma `sbp_...` yapıştırılacak.
 - Kullanıcıya: yüksek görünen dolar bütçeleri ₺ TL'ye çevirip kaydetmesini söylemek.
 - Sonra: Google girişi, crm.stagayrimenkul.com.tr için Pixelibol CNAME (`crm` → `sadikalpe.github.io`),
