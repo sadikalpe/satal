@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>STA CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="boot" class="center"><div class="muted">Yükleniyor…</div></div>
+
+<!-- Giriş -->
+<section id="auth" class="center" hidden>
+  <div class="auth-card panel stack">
+    <div class="brand">STA <small>Portföy CRM</small></div>
+    <div id="authMsg" class="note-banner" hidden></div>
+
+    <form id="loginForm" class="stack" autocomplete="on">
+      <label class="f">E-posta<input id="li-email" type="email" autocomplete="username" required></label>
+      <label class="f">Şifre<input id="li-pass" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Giriş yap</button>
+      <button class="btn" type="button" id="googleBtn"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Google ile giriş yap</button>
+      <button class="btn ghost" type="button" id="forgotBtn">Şifremi unuttum</button>
+    </form>
+
+    <form id="mfaForm" class="stack" hidden autocomplete="off">
+      <h3>İki adımlı doğrulama</h3>
+      <p class="muted" style="margin:0">Telefonunuzdaki Google Authenticator uygulamasında görünen 6 haneli kodu girin.</p>
+      <label class="f">Doğrulama kodu<input id="mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></label>
+      <button class="btn primary" type="submit">Doğrula</button>
+      <button class="btn ghost" type="button" data-logout>Farklı hesapla giriş yap</button>
+    </form>
+
+    <form id="recoverForm" class="stack" hidden autocomplete="off">
+      <h3>Yeni şifre belirleyin</h3>
+      <label class="f">Yeni şifre (en az 8 karakter)<input id="rc-pass" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="btn primary" type="submit">Şifreyi kaydet</button>
+    </form>
+  </div>
+</section>
+
+<!-- Uygulama -->
+<div id="app" hidden>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">STA <small>Portföy CRM</small></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="match" aria-selected="true">Portföy eşleştir</button>
+      <button role="tab" data-tab="contacts" aria-selected="false">Rehber</button>
+      <button role="tab" data-tab="import" aria-selected="false">Rehber yükle</button>
+      <button role="tab" data-tab="alerts" aria-selected="false" data-admin hidden>Ekip eşleşmeleri<span id="alertBadge" class="badge" hidden></span></button>
+      <button role="tab" data-tab="team" aria-selected="false" data-admin hidden>Ekip</button>
+      <button role="tab" data-tab="account" aria-selected="false">Hesabım</button>
+    </nav>
+    <div class="fx"><span>1 $ =</span><b id="fxVal">—</b><span>₺</span><button class="btn ghost small" id="fxEdit" type="button" data-admin hidden>Kuru güncelle</button></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="globalNote" class="note-banner" hidden></div>
+
+  <section id="tab-match" class="stack">
+    <div>
+      <h2>Bu mülkü kim alır?</h2>
+      <p class="lede">Elinize gelen mülkü girin. Bütçesi uyan, o bölgeyle ilgilenmiş ya da daha önce orada mülk konuştuğunuz kişileri sıralarım. Her kişiye özel WhatsApp mesajı hazırlayıp gönderebilirsiniz.</p>
+    </div>
+    <div class="grid2">
+      <div class="stack">
+        <form id="listingForm" class="panel stack" autocomplete="off">
+          <h3 id="lfTitle">Yeni portföy</h3>
+          <label class="f">Başlık<input id="lf-title" required placeholder="Ör. Güzelbahçe deniz manzaralı arsa"></label>
+          <div class="row">
+            <label class="f">Tür<select id="lf-type"></select></label>
+            <label class="f">İlçe / bölge<input id="lf-region" required placeholder="Güzelbahçe" list="regionList"></label>
+          </div>
+          <div class="row">
+            <label class="f">Mahalle<input id="lf-hood" placeholder="Yelki"></label>
+            <label class="f">m²<input id="lf-m2" inputmode="numeric" placeholder="1200"></label>
+          </div>
+          <div class="row">
+            <label class="f" style="flex:2 1 160px">Fiyat<input id="lf-price" required inputmode="decimal" placeholder="6.000.000"></label>
+            <label class="f" style="flex:1 1 90px">Para birimi<select id="lf-cur"><option value="USD">$ USD</option><option value="TRY">₺ TL</option></select></label>
+          </div>
+          <div class="muted small-t" id="lf-conv"></div>
+          <label class="f">Açıklama<textarea id="lf-desc" placeholder="İmar durumu, manzara, yola cephe, öne çıkan özellikler..."></textarea></label>
+          <div class="row">
+            <button class="btn primary" type="submit" id="lf-save">Kaydet ve eşleştir</button>
+            <button class="btn" type="button" id="lf-new" hidden>Yeni portföy</button>
+            <button class="btn ghost" type="button" id="lf-del" hidden>Portföyü sil</button>
+          </div>
+        </form>
+        <div>
+          <h3 style="margin-bottom:8px">Portföyler</h3>
+          <div id="listingList" class="lst"></div>
+        </div>
+      </div>
+      <div class="panel" id="matchPanel"></div>
+    </div>
+  </section>
+
+  <section id="tab-contacts" class="stack" hidden>
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2>Rehber</h2><div class="kpis" id="kpis" style="margin-top:6px"></div></div>
+      <div class="row"><button class="btn" type="button" id="reload">Yenile</button><button class="btn primary" type="button" id="addContact">Kişi ekle</button></div>
+    </div>
+    <div class="panel stack">
+      <div class="row">
+        <label class="f" style="flex:3 1 240px">Ara<input id="q" placeholder="İsim, telefon, not, bölge... (ör. güzelbahçe arsa)"></label>
+        <label class="f">Bölge<input id="fRegion" placeholder="Urla" list="regionList"></label>
+        <label class="f">En az bütçe ($)<input id="fBudget" inputmode="numeric" placeholder="1.000.000"></label>
+        <label class="f" data-admin hidden>Danışman<select id="fOwner"><option value="">Herkes</option></select></label>
+        <label class="f">Durum<select id="fState"><option value="">Tümü</option><option value="noted">Notu olanlar</option><option value="empty">Henüz not girilmemiş</option></select></label>
+      </div>
+    </div>
+    <div class="panel"><div class="tbl-wrap" id="contactTable"></div></div>
+  </section>
+
+  <section id="tab-import" class="stack" hidden>
+    <div>
+      <h2>Rehber yükle</h2>
+      <p class="lede">Telefonunuzdan dışa aktardığınız rehber dosyasını seçin. Kişiler sizin rehberinize eklenir. Aynı numara zaten varsa ikinci kez eklenmez, mevcut notlar korunur.</p>
+    </div>
+    <div class="grid2">
+      <div class="panel stack">
+        <label class="f">Dosya (.vcf veya .csv)<input type="file" id="file" accept=".vcf,.vcard,.csv,text/vcard,text/csv"></label>
+        <div id="importPreview" class="stack"></div>
+      </div>
+      <div class="panel stack">
+        <h3>Rehberi nasıl dışa aktarırım?</h3>
+        <div><b>iPhone:</b> <span class="muted">iCloud.com › Kişiler › tüm kişileri seçin › Paylaş › vCard Dışa Aktar. Ya da Kişiler uygulamasında “Tüm Kişiler”e uzun basıp Dışa Aktar.</span></div>
+        <div><b>Android:</b> <span class="muted">Kişiler uygulaması › Ayarlar › Dışa aktar › .vcf dosyası. Google hesabındaysa contacts.google.com › Dışa aktar › Google CSV.</span></div>
+        <div><b>Excel listesi:</b> <span class="muted">“Ad”, “Soyad”, “Telefon” sütunları olan dosyayı CSV olarak kaydedin. Not sütunu varsa o da alınır.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-alerts" class="stack" hidden>
+    <div class="row" style="justify-content:space-between;align-items:end">
+      <div><h2>Ekip eşleşmeleri</h2><p class="lede">Bir danışmanın portföyü başka bir danışmanın (ya da sizin) rehberindeki birine uyduğunda burada görünür. Danışmanlar bu listeyi görmez. İki tarafı buluşturduktan sonra “Paylaştım” ile kapatın.</p></div>
+      <div class="row"><label class="f" style="flex:0 1 180px">Göster<select id="alertFilter"><option value="new">Yeni</option><option value="shared">Paylaşılanlar</option><option value="dismissed">İlgisiz bulunanlar</option></select></label><button class="btn" type="button" id="rescan">Yeniden tara</button></div>
+    </div>
+    <div id="alertList" class="stack"></div>
+  </section>
+
+  <section id="tab-team" class="stack" hidden>
+    <div><h2>Ekip</h2><p class="lede">Danışman hesaplarını buradan açarsınız. Danışmanlar yalnızca kendi rehberlerini görür; siz herkesinkini görürsünüz. Ayrılan bir danışmanın hesabını kapatıp rehberini devralabilirsiniz.</p></div>
+    <div class="grid2">
+      <form id="newUser" class="panel stack" autocomplete="off">
+        <h3>Danışman ekle</h3>
+        <label class="f">Ad soyad<input id="nu-name" required></label>
+        <label class="f">E-posta<input id="nu-email" type="email" required placeholder="Google ile girecekse Gmail adresi"></label>
+        <label class="f">Geçici şifre<input id="nu-pass" minlength="8" required></label>
+        <div class="muted small-t">Danışman bu e-posta ve şifreyle girer, sonra Hesabım sayfasından şifresini değiştirir. E-posta bir Google hesabıysa “Google ile giriş yap” da çalışır.</div>
+        <div><button class="btn primary" type="submit">Hesabı aç</button></div>
+      </form>
+      <div class="panel"><div class="tbl-wrap" id="teamTable"></div></div>
+    </div>
+  </section>
+
+  <section id="tab-account" class="stack" hidden>
+    <div><h2>Hesabım</h2><p class="lede" id="acc-who"></p></div>
+    <div class="grid2">
+      <div class="stack">
+        <form id="accName" class="panel stack"><h3>Adınız</h3><label class="f">Mesajlarda imza olarak da kullanılır<input id="acc-name" required></label><div><button class="btn" type="submit">Kaydet</button></div></form>
+        <form id="accPass" class="panel stack" autocomplete="off"><h3>Şifre değiştir</h3><label class="f">Yeni şifre (en az 8 karakter)<input id="acc-pass" type="password" autocomplete="new-password" minlength="8" required></label><div><button class="btn" type="submit">Şifreyi değiştir</button></div></form>
+      </div>
+      <div class="panel stack" id="mfaPanel"></div>
+    </div>
+    <div><button class="btn" type="button" data-logout>Çıkış yap</button></div>
+  </section>
+</main>
+</div>
+
+<datalist id="regionList"></datalist>
+<div id="drawerRoot"></div>
+<div id="toast" class="toast" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
