@@ -351,7 +351,7 @@ begin
   R := public.tr_norm(L.region); H := public.tr_norm(L.hood); P := L.price_usd;
 
   create temp table if not exists _tm (contact_id uuid, phone text, score int, reasons jsonb) on commit drop;
-  delete from _tm;
+  delete from _tm where true;
   insert into _tm
   select c.id, c.phone, least(99, s.score), s.reasons
   from public.contacts c
@@ -425,3 +425,8 @@ grant execute on function public.transfer_contacts(uuid, uuid) to authenticated;
 revoke execute on function public.set_my_name(text) from public, anon;
 grant execute on function public.set_my_name(text) to authenticated;
 grant execute on function public.is_admin(), public.is_active() to authenticated;
+-- Sunucu fonksiyonları (danışman hesabı, kur) servis rolüyle çalışır. Yeni Supabase projeleri
+-- bu yetkiyi otomatik vermediği için açıkça veriyoruz.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on all tables in schema public to service_role;
+grant execute on all functions in schema public to service_role;
