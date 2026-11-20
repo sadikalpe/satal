@@ -49,6 +49,10 @@ $("#loginForm").onsubmit = async (e) => {
   btn.disabled = false;
   if (error) authMsg(/invalid/i.test(error.message) ? "E-posta ya da şifre hatalı." : /banned/i.test(error.message) ? "Hesabınız kapatılmış. Yöneticinizle görüşün." : error.message);
 };
+// Google ile giriş Supabase'te açılmadıysa düğmeyi gösterme
+$("#googleBtn").hidden = true;
+fetch(SUPABASE_URL + "/auth/v1/settings", { headers: { apikey: SUPABASE_ANON_KEY } })
+  .then((r) => r.json()).then((st) => { $("#googleBtn").hidden = !st?.external?.google; }).catch(() => {});
 $("#googleBtn").onclick = async () => {
   const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
   if (error) authMsg(error.message);
