@@ -145,6 +145,10 @@ Deno.serve(async (req) => {
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
 
+  // Claude isteğe bağlıdır: ANTHROPIC_API_KEY girilmemişse arayüz bu özellikleri gizler.
+  if (body.task === "status") return json({ enabled: !!Deno.env.get("ANTHROPIC_API_KEY") });
+  if (!Deno.env.get("ANTHROPIC_API_KEY")) return json({ error: "api_key" }, 503);
+
   try {
     if (body.task === "message") {
       const text = await ask(messagePrompt(body), { effort: "low", maxTokens: 4000 });

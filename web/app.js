@@ -23,7 +23,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: "pk
 const S = {
   user: null, me: null, isAdmin: false, profiles: new Map(),
   contacts: [], byId: new Map(), listings: [], fx: null, sel: null,
-  teamMatches: [], lastTeamCount: null, loaded: false,
+  teamMatches: [], lastTeamCount: null, loaded: false, aiEnabled: false,
 };
 const pname = (id) => S.profiles.get(id)?.full_name || S.profiles.get(id)?.email || "Danışman";
 
@@ -136,6 +136,7 @@ async function loadAll() {
     S.loaded = true;
     renderAll();
     refreshFx();
+    callAI({ task: "status" }).then((r) => { S.aiEnabled = !!r?.enabled; renderMatches(); }).catch(() => { S.aiEnabled = false; });
   } catch (e) {
     console.error(e);
     note("Veriler yüklenemedi. Sayfayı yenileyin; sorun sürerse yöneticinize haber verin.");
@@ -303,12 +304,12 @@ function renderMatches() {
   const head = `<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><div style="min-width:0"><h3>${esc(L.title)}</h3>
     <div class="muted small-t">${esc(L.prop_type)} · ${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""} · <span class="num">${priceTxt(L)}</span>${S.fx?.usd_try && L.price_currency !== "TRY" ? ` <span class="num">(≈ ${(L.price_usd * S.fx.usd_try / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} M ₺)</span>` : ""}</div></div>
     <span class="chip"><b class="num">${list.length}</b>&nbsp;olası alıcı · ${scope}</span></div>${teamNote}`;
-  const ai = `<div class="sec" style="margin-top:10px"><div class="row" style="align-items:center;justify-content:space-between"><div class="muted small-t" style="max-width:52ch">Notlar serbest yazıldıysa (“Urla tarafına bakıyordu, parası var”) Claude notları okuyup kaçan kişileri bulabilir.</div><button class="btn small" id="aiScanBtn" type="button">Notları Claude ile tara</button></div><div id="aiScanOut"></div></div>`;
+  const ai = !S.aiEnabled ? "" : `<div class="sec" style="margin-top:10px"><div class="row" style="align-items:center;justify-content:space-between"><div class="muted small-t" style="max-width:52ch">Notlar serbest yazıldıysa (“Urla tarafına bakıyordu, parası var”) Claude notları okuyup kaçan kişileri bulabilir.</div><button class="btn small" id="aiScanBtn" type="button">Notları Claude ile tara</button></div><div id="aiScanOut"></div></div>`;
   el.innerHTML = head + (list.length
     ? `<div>${list.slice(0, 150).map((m) => matchRow(m)).join("")}</div>${list.length > 150 ? `<div class="muted">İlk 150 kişi gösteriliyor.</div>` : ""}`
     : `<div class="empty" style="margin-top:10px"><h3>Kurala uyan kişi çıkmadı</h3><p style="margin:0">Kişilere bütçe, bölge ve geçmiş görüşme girdikçe eşleşmeler artar. Rehber sekmesinde “Henüz not girilmemiş” filtresiyle başlayabilirsiniz.</p></div>`) + ai;
   wireMatchButtons(el, L);
-  $("#aiScanBtn").onclick = () => aiScan(L, new Set(list.flatMap((m) => [m.c.id, ...m.others.map((o) => o.id)])));
+  if (S.aiEnabled) $("#aiScanBtn").onclick = () => aiScan(L, new Set(list.flatMap((m) => [m.c.id, ...m.others.map((o) => o.id)])));
 }
 function matchRow(m) {
   const c = m.c; const cls = m.s >= 60 ? "hi" : m.s >= 40 ? "md" : "";
@@ -446,7 +447,7 @@ function contactBox(c) {
     <div class="row"><label class="f" style="flex:2 1 200px">Ad soyad<input id="c-name" value="${esc(c.name)}"></label>
       <label class="f">Telefon<input id="c-phone" value="${isNew ? "" : esc(phoneFmt(c.phone))}" ${isNew ? "" : "disabled"} inputmode="tel" placeholder="0532 123 45 67"></label></div>
     <label class="f">Notlar (kim, ne iş yapar, ne arıyor)<textarea id="c-note" placeholder="Ör. Bornova’da iki eczanesi var. 2–3 milyon $ arası Urla/Çeşme’de villa bakıyor. 1,5 yıl önce Güzelbahçe arsasıyla ilgilendi, fiyat yüksek geldi.">${esc(c.note || "")}</textarea></label>
-    <div class="row" style="align-items:center"><button class="btn small" type="button" id="c-ai">Nottan alanları doldur (Claude)</button><span class="muted small-t" id="c-ai-st">Bütçe, bölge, tür ve geçmiş görüşmeleri notunuzdan çıkarır.</span></div>
+    <div class="row" style="align-items:center" ${S.aiEnabled ? "" : "hidden"}><button class="btn small" type="button" id="c-ai">Nottan alanları doldur (Claude)</button><span class="muted small-t" id="c-ai-st">Bütçe, bölge, tür ve geçmiş görüşmeleri notunuzdan çıkarır.</span></div>
     <div class="row"><label class="f" style="flex:0 1 110px">Bütçe birimi<select id="c-cur"><option value="USD" ${c.budget_currency === "TRY" ? "" : "selected"}>$ USD</option><option value="TRY" ${c.budget_currency === "TRY" ? "selected" : ""}>₺ TL</option></select></label>
       <label class="f">Bütçe en az<input id="c-min" inputmode="numeric" value="${budgetIn(c, "min")}" placeholder="1.500.000"></label>
       <label class="f">Bütçe en çok<input id="c-max" inputmode="numeric" value="${budgetIn(c, "max")}" placeholder="3.000.000"></label>
@@ -580,9 +581,9 @@ function messageBox(c, L) {
   const signer = S.me.full_name || "";
   const n = h(`${dHead("WhatsApp mesajı", esc(c.name || "") + " · " + phoneFmt(c.phone))}<div class="stack msgbox">
     <div class="muted small-t">${esc(L.title)} · <span class="num">${priceTxt(L)}</span></div>
-    <div class="row"><label class="f">Ton<select id="m-tone"><option>Samimi ve profesyonel</option><option>Resmi</option><option>Kısa ve net</option></select></label><button class="btn" type="button" id="m-gen">Claude ile kişiye özel yaz</button></div>
+    <div class="row"><label class="f" ${S.aiEnabled ? "" : "hidden"}>Ton<select id="m-tone"><option>Samimi ve profesyonel</option><option>Resmi</option><option>Kısa ve net</option></select></label><button class="btn" type="button" id="m-gen" ${S.aiEnabled ? "" : "hidden"}>Claude ile kişiye özel yaz</button></div>
     <textarea id="m-text">${esc(templateMessage(c, L, signer))}</textarea>
-    <div class="muted small-t" id="m-st">Hazır şablon yüklendi. Claude, kişinin notlarına ve geçmiş görüşmelerine göre yeniden yazabilir.</div>
+    <div class="muted small-t" id="m-st">${S.aiEnabled ? "Hazır şablon yüklendi. Claude, kişinin notlarına ve geçmiş görüşmelerine göre yeniden yazabilir." : "Hazır şablon yüklendi. Göndermeden önce kişiye göre düzenleyebilirsiniz."}</div>
     <div class="row"><a class="btn wa" id="m-wa" href="#" target="_blank" rel="noopener">WhatsApp’ta aç</a><button class="btn" type="button" id="m-copy">Metni kopyala</button><button class="btn ghost" type="button" id="m-done">Gönderildi olarak işaretle</button></div>
     <div class="muted" style="font-size:12.5px">Mesaj sizin WhatsApp’ınızdan, siz Gönder’e bastığınızda gider.</div></div>`);
   const ta = $("#m-text", n), wa = $("#m-wa", n);
