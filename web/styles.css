@@ -108,3 +108,6 @@ td .note{color:var(--muted);font-size:13px;max-width:44ch;display:-webkit-box;-w
 .qr img{display:block;width:180px;height:180px}
 .tm-group{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px}
 @media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
+.owner-line{margin-top:6px;font-size:13px;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:4px 8px;width:fit-content;max-width:100%}
+.owner-line b{color:var(--fg)}
+.owner-line.pair{display:flex;flex-wrap:wrap;gap:4px 10px}

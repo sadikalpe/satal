@@ -29,6 +29,13 @@ const S = {
   teamMatches: [], lastTeamCount: null, loaded: false, aiEnabled: false,
 };
 const pname = (id) => S.profiles.get(id)?.full_name || S.profiles.get(id)?.email || "Danışman";
+// "Ali Yılmaz (ali@ofis.com)": yönetici kimin kişisi ya da portföyü olduğunu açıkça görsün
+function ownerLabel(id) {
+  if (id === S.me?.id) return "Ben";
+  const p = S.profiles.get(id);
+  if (!p) return "Bilinmeyen danışman";
+  return p.full_name && p.email ? `${p.full_name} (${p.email})` : p.full_name || p.email;
+}
 
 // ---------------- auth ----------------
 function authMsg(t, kind = "note") { const el = $("#authMsg"); el.textContent = t || ""; el.className = kind === "info" ? "info-banner" : "note-banner"; el.hidden = !t; }
@@ -186,11 +193,34 @@ function priceTxt(L) {
   return fmtUSD(L.price_usd);
 }
 
+// Ekip eşleşmeleri (yalnızca yönetici): her portföy, onu girenden BAŞKA birinin rehberindeki alıcılarla
+// karşılaştırılır. Yönetici bütün veriyi gördüğü için hesap tarayıcıda yapılır; "Paylaştım / İlgisiz"
+// durumları settings tablosunda saklanır.
 async function loadTeamMatches() {
-  const rows = await fetchAll("team_matches", "*", "created_at");
+  const { data } = await sb.from("settings").select("value").eq("key", "match_status").maybeSingle();
+  S.matchStatus = data?.value || {};
+  computeTeamMatches();
+}
+function computeTeamMatches() {
+  const rows = [];
+  for (const L of S.listings) {
+    if (L.status && L.status !== "active") continue;
+    const others = S.contacts.filter((c) => c.owner_id !== L.created_by);
+    for (const m of matchContacts(L, others)) {
+      const key = L.id + ":" + m.c.phone;
+      rows.push({ key, L, m, status: S.matchStatus?.[key] || "new" });
+    }
+  }
   S.teamMatches = rows;
-  const n = new Set(rows.filter((r) => r.status === "new").map((r) => r.listing_id + ":" + (S.byId.get(r.contact_id)?.phone || r.contact_id))).size;
+  const n = rows.filter((r) => r.status === "new").length;
   $("#alertBadge").textContent = n; $("#alertBadge").hidden = !n;
+}
+async function setMatchStatus(key, status) {
+  const next = Object.fromEntries(Object.entries(S.matchStatus || {}).filter(([k]) => k !== key));
+  if (status !== "new") next[key] = status;
+  const { error } = await sb.from("settings").upsert({ key: "match_status", value: next });
+  if (error) throw error;
+  S.matchStatus = next; computeTeamMatches();
 }
 function upsertLocalContact(c) {
   const prev = S.byId.get(c.id);
@@ -212,6 +242,7 @@ function showTab(t) {
   if (t === "account") renderAccount();
 }
 function renderAll() {
+  if (S.isAdmin) computeTeamMatches();
   renderFx(); renderListings(); renderMatches();
   if (!$("#tab-contacts").hidden) renderContacts();
   if (!$("#tab-alerts").hidden) renderAlerts();
@@ -293,7 +324,8 @@ $("#listingForm").onsubmit = async (e) => {
     S.listings = [data, ...S.listings.filter((x) => x.id !== data.id)]; S.sel = data.id;
     S.lastTeamCount = null; renderListings(); renderMatches(); toast("Kaydedildi");
     const { data: n, error: e2 } = await sb.rpc("refresh_team_matches", { p_listing: data.id });
-    if (!e2) { S.lastTeamCount = n; renderMatches(); if (S.isAdmin) { await loadTeamMatches(); } }
+    if (!e2) { S.lastTeamCount = n; renderMatches(); }
+    if (S.isAdmin) computeTeamMatches();
   } catch (err) { console.error(err); toast("Kaydedilemedi, tekrar deneyin"); }
   finally { btn.disabled = false; }
 };
@@ -320,7 +352,8 @@ function renderMatches() {
     ? `<div class="info-banner" style="margin:8px 0">Ekipte bu portföye uyabilecek başka alıcılar da var. Yöneticinize bildirildi, sizinle iletişime geçecek.</div>` : "";
   const head = `<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><div style="min-width:0"><h3>${esc(L.title)}</h3>
     <div class="muted small-t">${esc(L.prop_type)} · ${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""} · <span class="num">${priceTxt(L)}</span>${S.fx?.usd_try && L.price_currency !== "TRY" ? ` <span class="num">(≈ ${(L.price_usd * S.fx.usd_try / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} M ₺)</span>` : ""}</div></div>
-    <span class="chip"><b class="num">${list.length}</b>&nbsp;olası alıcı · ${scope}</span></div>${teamNote}`;
+    <span class="chip"><b class="num">${list.length}</b>&nbsp;olası alıcı · ${scope}</span></div>${teamNote}
+    ${S.isAdmin ? `<div class="owner-line" style="margin-bottom:6px">Portföyü giren: <b>${esc(ownerLabel(L.created_by))}</b>${(() => { const n = list.filter((m) => m.owners.some((o) => o !== L.created_by)).length; return n ? ` · <b>${n}</b> alıcı başka danışmanların rehberinde` : ""; })()}</div>` : ""}`;
   const ai = !S.aiEnabled ? "" : `<div class="sec" style="margin-top:10px"><div class="row" style="align-items:center;justify-content:space-between"><div class="muted small-t" style="max-width:52ch">Notlar serbest yazıldıysa (“Urla tarafına bakıyordu, parası var”) Claude notları okuyup kaçan kişileri bulabilir.</div><button class="btn small" id="aiScanBtn" type="button">Notları Claude ile tara</button></div><div id="aiScanOut"></div></div>`;
   el.innerHTML = head + (list.length
     ? `<div>${list.slice(0, 150).map((m) => matchRow(m)).join("")}</div>${list.length > 150 ? `<div class="muted">İlk 150 kişi gösteriliyor.</div>` : ""}`
@@ -330,9 +363,11 @@ function renderMatches() {
 }
 function matchRow(m) {
   const c = m.c; const cls = m.s >= 60 ? "hi" : m.s >= 40 ? "md" : "";
-  const owners = S.isAdmin ? [...new Set(m.owners)].map((o) => `<span class="chip owner">${esc(o === S.me.id ? "Benim rehberim" : pname(o))}</span>`).join("") : "";
+  const ownerIds = [...new Set(m.owners)];
+  const owners = "";
+  const ownerLine = S.isAdmin ? `<div class="owner-line">Danışmanı: ${ownerIds.map((o) => `<b>${esc(ownerLabel(o))}</b>`).join(", ")}</div>` : "";
   return `<div class="match"><div class="score ${cls}" title="Uyum puanı">${esc(m.s)}</div><div style="min-width:0">
-    <div class="nm">${esc(c.name || "İsimsiz")}${c.tier ? ` <span class="chip" style="font-size:11px">${esc(c.tier)}</span>` : ""}</div><div class="ph">${phoneFmt(c.phone)}</div>
+    <div class="nm">${esc(c.name || "İsimsiz")}${c.tier ? ` <span class="chip" style="font-size:11px">${esc(c.tier)}</span>` : ""}</div><div class="ph">${phoneFmt(c.phone)}</div>${ownerLine}
     <div class="why chips">${owners}${m.why.map((w) => `<span class="chip ${esc(w.k)}">${esc(w.t)}</span>`).join("")}</div>
     ${c.note ? `<div class="muted small-t" style="margin-top:6px">${esc(c.note.slice(0, 160))}${c.note.length > 160 ? "…" : ""}</div>` : ""}</div>
     <div class="acts"><button class="btn wa small" type="button" data-msg="${esc(c.id)}">WhatsApp mesajı</button><button class="btn small" type="button" data-open="${esc(c.id)}">Kartı aç</button></div></div>`;
@@ -469,7 +504,7 @@ function contactBox(c) {
       <label class="f">Bütçe en az<input id="c-min" inputmode="numeric" value="${budgetIn(c, "min")}" placeholder="1.500.000"></label>
       <label class="f">Bütçe en çok<input id="c-max" inputmode="numeric" value="${budgetIn(c, "max")}" placeholder="3.000.000"></label>
       <label class="f">Potansiyel<select id="c-tier"><option value="">—</option>${["A", "B", "C"].map((t) => `<option ${c.tier === t ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
-    <div class="muted small-t" id="c-budget-info">${budgetInfo(c)}</div>
+    <div class="muted small-t" id="c-budget-info">${c.budget_currency !== "TRY" && (c.budget_max || 0) > 50e6 ? `<span style="color:var(--bad)">Bu bütçe dolar olarak çok yüksek (${fmtShort(c.budget_max)}). TL düşünülerek girildiyse “Bütçe birimi”ni ₺ TL yapıp kaydedin.</span>` : budgetInfo(c)}</div>
     <label class="f">İlgilendiği bölgeler (virgülle)<input id="c-reg" value="${esc((c.regions || []).join(", "))}" placeholder="Urla, Çeşme, Güzelbahçe"></label>
     <div><div class="lbl">Aradığı mülk türleri</div><div class="chips" id="c-types">${TYPES.map((t) => `<button type="button" class="chip toggle" aria-pressed="${(c.types || []).includes(t)}">${esc(t)}</button>`).join("")}</div></div>
     <div id="c-pending" class="muted small-t"></div>
@@ -492,6 +527,7 @@ function contactBox(c) {
   });
   const budgetPreview = () => {
     const cur = $("#c-cur", n).value, mx = parseNum($("#c-max", n).value), mn = parseNum($("#c-min", n).value);
+    if (cur !== "TRY" && Math.max(mn || 0, mx || 0) > 50e6) { $("#c-budget-info", n).innerHTML = `<span style="color:var(--bad)">Bu tutar dolar olarak çok yüksek (${fmtShort(Math.max(mn || 0, mx || 0))}). TL düşündüyseniz “Bütçe birimi”ni ₺ TL yapın.</span>`; return; }
     if (cur !== "TRY" || (mx == null && mn == null)) { $("#c-budget-info", n).innerHTML = cur === "TRY" ? "TL girilen bütçe, kaydettiğiniz günün kuruyla dolara çevrilip sabitlenir." : ""; return; }
     try { const f = budgetFields({ currency: "TRY", min: mn, max: mx, rate: S.fx?.usd_try, day: today(), prev: isNew ? null : c }); $("#c-budget-info", n).innerHTML = budgetInfo(f); }
     catch { $("#c-budget-info", n).textContent = "Kur henüz alınamadı; TL bütçe kaydetmek için biraz sonra tekrar deneyin."; }
@@ -660,37 +696,35 @@ $("#file").onchange = async (e) => {
 $("#alertFilter").onchange = () => renderAlerts();
 $("#rescan").onclick = async () => {
   const btn = $("#rescan"); btn.disabled = true;
-  const targets = S.listings.filter((L) => L.status === "active" && S.profiles.get(L.created_by)?.role !== "admin");
-  try {
-    for (const L of targets) await sb.rpc("refresh_team_matches", { p_listing: L.id });
-    await loadTeamMatches(); renderAlerts(); toast(targets.length + " portföy tarandı");
-  } finally { btn.disabled = false; }
+  try { await loadAll(); renderAlerts(); toast(S.listings.length + " portföy tarandı"); }
+  finally { btn.disabled = false; }
 };
 function renderAlerts() {
   const el = $("#alertList"), status = $("#alertFilter").value;
-  const rows = S.teamMatches.filter((r) => r.status === status && S.byId.has(r.contact_id) && S.listings.some((L) => L.id === r.listing_id));
+  const rows = S.teamMatches.filter((r) => r.status === status);
   if (!rows.length) {
-    el.innerHTML = `<div class="empty"><h3>${status === "new" ? "Yeni ekip eşleşmesi yok" : "Kayıt yok"}</h3><p style="margin:0">Danışmanlar portföy girdikçe, başka bir danışmanın rehberinde uyan alıcı varsa burada görünür. “Yeniden tara” yeni eklenen kişileri de hesaba katar.</p></div>`;
+    el.innerHTML = `<div class="empty"><h3>${status === "new" ? "Yeni ekip eşleşmesi yok" : "Kayıt yok"}</h3><p style="margin:0">Bir portföy, onu girenden başka birinin rehberindeki alıcıya uyduğunda burada görünür. Sizin portföyleriniz de danışmanların alıcılarıyla karşılaştırılır.</p></div>`;
     return;
   }
   const byListing = new Map();
-  for (const r of rows) { if (!byListing.has(r.listing_id)) byListing.set(r.listing_id, []); byListing.get(r.listing_id).push(r); }
-  el.innerHTML = [...byListing.entries()].map(([lid, rs]) => {
-    const L = S.listings.find((x) => x.id === lid);
-    rs.sort((a, b) => b.score - a.score);
-    return `<div class="panel stack"><div><h3>${esc(L.title)}</h3><div class="muted small-t">${esc(pname(L.created_by))} girdi · ${esc(L.prop_type)} · ${esc(L.region)} · <span class="num">${priceTxt(L)}</span></div></div>
-      ${rs.map((r) => { const c = S.byId.get(r.contact_id); return `<div class="match"><div class="score ${r.score >= 60 ? "hi" : r.score >= 40 ? "md" : ""}">${esc(r.score)}</div><div style="min-width:0">
+  for (const r of rows) { if (!byListing.has(r.L.id)) byListing.set(r.L.id, []); byListing.get(r.L.id).push(r); }
+  el.innerHTML = [...byListing.values()].map((rs) => {
+    const L = rs[0].L;
+    rs.sort((a, b) => b.m.s - a.m.s);
+    return `<div class="panel stack"><div><h3>${esc(L.title)}</h3>
+      <div class="muted small-t">${esc(L.prop_type)} · ${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""} · <span class="num">${priceTxt(L)}</span></div>
+      <div class="owner-line">Portföyü giren: <b>${esc(ownerLabel(L.created_by))}</b></div></div>
+      ${rs.map((r) => { const c = r.m.c; const owners = [...new Set(r.m.owners)];
+        return `<div class="match"><div class="score ${r.m.s >= 60 ? "hi" : r.m.s >= 40 ? "md" : ""}">${esc(r.m.s)}</div><div style="min-width:0">
         <div class="nm">${esc(c.name || "İsimsiz")}</div><div class="ph">${phoneFmt(c.phone)}</div>
-        <div class="why chips"><span class="chip owner">${esc(c.owner_id === S.me.id ? "Benim rehberim" : pname(c.owner_id) + " rehberinde")}</span>${(r.reasons || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div></div>
-        <div class="acts">${status === "new" ? `<button class="btn primary small" type="button" data-st="shared" data-l="${esc(lid)}" data-c="${esc(c.id)}">Paylaştım</button><button class="btn small" type="button" data-st="dismissed" data-l="${esc(lid)}" data-c="${esc(c.id)}">İlgisiz</button>` : `<button class="btn small" type="button" data-st="new" data-l="${esc(lid)}" data-c="${esc(c.id)}">Yeniye al</button>`}
+        <div class="owner-line pair"><span>Alıcının danışmanı: <b>${owners.map((o) => esc(ownerLabel(o))).join(", ")}</b></span><span>→ portföy sahibi: <b>${esc(ownerLabel(L.created_by))}</b></span></div>
+        <div class="why chips">${r.m.why.map((w) => `<span class="chip ${esc(w.k)}">${esc(w.t)}</span>`).join("")}</div></div>
+        <div class="acts">${status === "new" ? `<button class="btn primary small" type="button" data-st="shared" data-k="${esc(r.key)}">Paylaştım</button><button class="btn small" type="button" data-st="dismissed" data-k="${esc(r.key)}">İlgisiz</button>` : `<button class="btn small" type="button" data-st="new" data-k="${esc(r.key)}">Yeniye al</button>`}
         <button class="btn ghost small" type="button" data-open="${esc(c.id)}">Kartı aç</button></div></div>`; }).join("")}</div>`;
   }).join("");
   $$("[data-st]", el).forEach((b) => (b.onclick = async () => {
-    const { error } = await sb.from("team_matches").update({ status: b.dataset.st }).eq("listing_id", b.dataset.l).eq("contact_id", b.dataset.c);
-    if (error) return toast("Güncellenemedi");
-    const r = S.teamMatches.find((x) => x.listing_id === b.dataset.l && x.contact_id === b.dataset.c); if (r) r.status = b.dataset.st;
-    const n = S.teamMatches.filter((x) => x.status === "new").length; $("#alertBadge").textContent = n; $("#alertBadge").hidden = !n;
-    renderAlerts();
+    try { await setMatchStatus(b.dataset.k, b.dataset.st); renderAlerts(); toast(b.dataset.st === "shared" ? "Paylaşıldı olarak işaretlendi" : b.dataset.st === "dismissed" ? "İlgisiz olarak işaretlendi" : "Yeniye alındı"); }
+    catch { toast("Güncellenemedi"); }
   }));
   $$("[data-open]", el).forEach((b) => (b.onclick = () => openDrawer(contactBox(S.byId.get(b.dataset.open)))));
 }
