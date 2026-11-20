@@ -17,7 +17,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   throw new Error("config missing");
 }
 
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: "pkce", detectSessionInUrl: true, persistSession: true } });
+// Davet ve şifre sıfırlama bağlantıları sunucudan gönderildiği için "implicit" akış kullanılır.
+// Bağlantı türünü, istemci adres çubuğunu temizlemeden önce okuyoruz.
+const linkType = new URLSearchParams(location.hash.replace(/^#/, "")).get("type");
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: "implicit", detectSessionInUrl: true, persistSession: true } });
 
 // ---------------- state ----------------
 const S = {
@@ -80,9 +83,14 @@ $("#recoverForm").onsubmit = async (e) => {
 };
 document.addEventListener("click", async (e) => { if (e.target.closest("[data-logout]")) { await sb.auth.signOut(); location.reload(); } });
 
-let routing = false, inRecovery = false;
+let routing = false, inRecovery = linkType === "invite" || linkType === "recovery";
 sb.auth.onAuthStateChange((ev) => {
-  if (ev === "PASSWORD_RECOVERY") { inRecovery = true; authMsg(""); authView("recoverForm"); return; }
+  if (ev === "PASSWORD_RECOVERY") inRecovery = true;
+  if (inRecovery) {
+    if (ev === "SIGNED_OUT") return;
+    $("#recoverForm h3").textContent = linkType === "invite" ? "Hoş geldiniz! Şifrenizi belirleyin" : "Yeni şifre belirleyin";
+    authMsg(""); authView("recoverForm"); return;
+  }
   if (ev === "INITIAL_SESSION" || ev === "SIGNED_IN" || ev === "SIGNED_OUT") setTimeout(route, 0);
 });
 
