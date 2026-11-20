@@ -28,8 +28,8 @@ do $$ begin
             when insufficient_privilege or check_violation then raise notice 'ok: consultant cannot change owner'; end;
 end $$;
 do $$ begin
-  begin insert into settings(key,value) values ('fx','{"usd_try":40}'); raise exception 'FAIL: consultant wrote settings';
-  exception when insufficient_privilege then raise notice 'ok: consultant cannot write settings'; end;
+  begin insert into fx_rates(day,usd_try) values ('2026-01-01', 1); raise exception 'FAIL: consultant wrote fx';
+  exception when insufficient_privilege then raise notice 'ok: consultant cannot write rates'; end;
 end $$;
 -- portföy: Veli ekler, Ali görür ama silemez
 insert into listings(title, prop_type, region, price_usd) values ('Güzelbahçe arsa','Arsa','Güzelbahçe',6000000);
@@ -54,7 +54,17 @@ end $$;
 -- admin
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000a1');
 select 'admin sees' t, count(*) from contacts; -- 3
-insert into settings(key,value) values ('fx','{"usd_try":42.1}');
+insert into fx_rates(day, usd_try) values ('2026-11-19', 50.47);
+-- TL fiyatlı mülk güncel kurla dolara çevrilir, kur değişince yeniden hesaplanır
+insert into listings(title, prop_type, region, price_currency, price_amount, price_usd) values ('TL daire','Daire','Buca','TRY', 10094000, 1);
+do $$ begin if (select price_usd from listings where title='TL daire') <> 200000 then raise exception 'FAIL: TRY listing price'; end if; end $$;
+insert into fx_rates(day, usd_try) values ('2026-11-20', 40.376);
+do $$ begin if (select price_usd from listings where title='TL daire') <> 250000 then raise exception 'FAIL: reprice'; end if; raise notice 'ok: TRY listing repriced with latest rate'; end $$;
+-- eski tarihli kur girmek güncel fiyatı değiştirmez
+insert into fx_rates(day, usd_try) values ('2025-05-12', 38.7458);
+do $$ begin if (select price_usd from listings where title='TL daire') <> 250000 then raise exception 'FAIL: old rate repriced'; end if; raise notice 'ok: old rate does not reprice'; end $$;
+-- USD mülkte price_amount = price_usd
+do $$ begin if (select price_amount from listings where title='Güzelbahçe arsa') <> 6000000 then raise exception 'FAIL: usd amount'; end if; end $$;
 select 'admin team matches' t, score, reasons from team_matches;
 -- Veli ayrılıyor: rehberi Ali'ye devredilir, ortak numara birleşir
 select 'moved' t, transfer_contacts('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-0000000000b1');

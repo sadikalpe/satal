@@ -87,3 +87,23 @@ test("yardımcılar", () => {
   assert.match(msg, /\$500\.000/);
   assert.equal(waLink("905321112233", "a b"), "https://wa.me/905321112233?text=a%20b");
 });
+
+test("TL bütçe giriş günündeki kurla dolara sabitlenir", async () => {
+  const { budgetFields } = await import("../web/lib.js");
+  const a = budgetFields({ currency: "TRY", min: null, max: 6000000, rate: 50, day: "2026-11-20" });
+  assert.equal(a.budget_max, 120000);
+  assert.equal(a.budget_max_try, 6000000);
+  assert.equal(a.budget_fx_day, "2026-11-20");
+  // bir yıl sonra kur 70 olsa da, TL tutarı değiştirilmeden kaydedilirse güç aynı dolar değerinde kalır
+  const b = budgetFields({ currency: "TRY", min: null, max: 6000000, rate: 70, day: "2027-11-20", prev: { ...a } });
+  assert.equal(b.budget_max, 120000);
+  assert.equal(b.budget_fx_day, "2026-11-20");
+  // TL tutarı güncellenirse yeni günün kuru kullanılır
+  const c = budgetFields({ currency: "TRY", min: null, max: 7000000, rate: 70, day: "2027-11-20", prev: { ...a } });
+  assert.equal(c.budget_max, 100000);
+  // dolar girişi olduğu gibi saklanır
+  const d = budgetFields({ currency: "USD", min: 1e6, max: 2e6 });
+  assert.equal(d.budget_max, 2e6);
+  assert.equal(d.budget_fx, null);
+  assert.throws(() => budgetFields({ currency: "TRY", max: 5e6, rate: null }));
+});

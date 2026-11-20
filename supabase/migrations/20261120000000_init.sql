@@ -68,6 +68,10 @@ create table if not exists public.listings (
   region       text not null default '',
   hood         text not null default '',
   m2           numeric,
+  -- Satılık mülkün fiyatı girildiği para biriminde saklanır. TL fiyatlı mülklerin dolar karşılığı
+  -- (price_usd) her kur güncellemesinde yeniden hesaplanır; eşleştirme bu güncel değeri kullanır.
+  price_currency text not null default 'USD' check (price_currency in ('USD','TRY')),
+  price_amount   numeric check (price_amount > 0),
   price_usd    numeric not null check (price_usd > 0),
   description  text not null default '',
   status       text not null default 'active' check (status in ('active','sold','archived')),
@@ -84,8 +88,15 @@ create table if not exists public.contacts (
   extra_phones  text[] not null default '{}',
   name          text not null default '',
   note          text not null default '',
+  -- Alım gücü her zaman dolar olarak saklanır (budget_min/max). TL girildiyse girildiği günün
+  -- kuruyla çevrilir; asıl TL tutar, kullanılan kur ve tarih kayıt için ayrıca tutulur.
   budget_min    numeric,
   budget_max    numeric,
+  budget_currency text not null default 'USD' check (budget_currency in ('USD','TRY')),
+  budget_min_try numeric,
+  budget_max_try numeric,
+  budget_fx      numeric,
+  budget_fx_day  date,
   tier          text check (tier in ('A','B','C')),
   regions       text[] not null default '{}',
   types         text[] not null default '{}',
@@ -104,6 +115,8 @@ create table if not exists public.interactions (
   region       text not null default '',
   prop_type    text not null default '',
   price_usd    numeric,
+  price_try    numeric,           -- TL girildiyse asıl tutar
+  price_fx     numeric,           -- çevirmede kullanılan, görüşme tarihindeki kur
   outcome      text not null default 'İlgilendi',
   note         text not null default '',
   listing_id   uuid references public.listings(id) on delete set null,
@@ -112,7 +125,48 @@ create table if not exists public.interactions (
 );
 create index if not exists interactions_contact_idx on public.interactions(contact_id);
 
--- ---------- settings (dolar kuru vb.) ----------
+-- ---------- fx_rates (günlük USD/TRY kuru) ----------
+-- TCMB döviz satış kuru; "fx" sunucu fonksiyonu doldurur, yönetici elle de girebilir.
+create table if not exists public.fx_rates (
+  day         date primary key,
+  usd_try     numeric not null check (usd_try > 0),
+  source      text not null default 'tcmb',
+  created_at  timestamptz not null default now()
+);
+
+create or replace function public.current_usd_try() returns numeric
+language sql stable security definer set search_path = public as $$
+  select usd_try from public.fx_rates order by day desc limit 1;
+$$;
+
+-- TL fiyatlı mülklerin dolar karşılığını güncel kurla hesaplar.
+create or replace function public.listing_price_sync() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r numeric;
+begin
+  if new.price_currency = 'TRY' then
+    if new.price_amount is null then raise exception 'TL fiyat girilmedi'; end if;
+    r := public.current_usd_try();
+    if r is null then raise exception 'Dolar kuru henüz girilmedi'; end if;
+    new.price_usd := round(new.price_amount / r);
+  else
+    new.price_amount := new.price_usd;
+  end if;
+  return new;
+end $$;
+
+-- Yeni ve en güncel kur gelince TL fiyatlı mülkleri yeniden hesaplar.
+create or replace function public.fx_rates_reprice() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.day >= (select max(day) from public.fx_rates) then
+    update public.listings set price_usd = round(price_amount / new.usd_try)
+    where price_currency = 'TRY' and price_amount is not null;
+  end if;
+  return new;
+end $$;
+
+-- ---------- settings ----------
 create table if not exists public.settings (
   key         text primary key,
   value       jsonb not null,
@@ -127,6 +181,12 @@ drop trigger if exists contacts_touch on public.contacts;
 create trigger contacts_touch before update on public.contacts for each row execute function public.touch_updated_at();
 drop trigger if exists listings_touch on public.listings;
 create trigger listings_touch before update on public.listings for each row execute function public.touch_updated_at();
+drop trigger if exists listings_price_sync on public.listings;
+create trigger listings_price_sync before insert or update of price_currency, price_amount, price_usd on public.listings
+  for each row execute function public.listing_price_sync();
+drop trigger if exists fx_rates_reprice on public.fx_rates;
+create trigger fx_rates_reprice after insert or update on public.fx_rates
+  for each row execute function public.fx_rates_reprice();
 drop trigger if exists settings_touch on public.settings;
 create trigger settings_touch before update on public.settings for each row execute function public.touch_updated_at();
 
@@ -148,6 +208,7 @@ alter table public.listings     enable row level security;
 alter table public.contacts     enable row level security;
 alter table public.interactions enable row level security;
 alter table public.settings     enable row level security;
+alter table public.fx_rates     enable row level security;
 
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select to authenticated
@@ -190,6 +251,11 @@ create policy interactions_all on public.interactions for all to authenticated
     select 1 from public.contacts c where c.id = contact_id and (c.owner_id = auth.uid() or public.is_admin())))
   with check (public.is_active() and exists (
     select 1 from public.contacts c where c.id = contact_id and (c.owner_id = auth.uid() or public.is_admin())));
+
+drop policy if exists fx_read on public.fx_rates;
+create policy fx_read on public.fx_rates for select to authenticated using (public.is_active());
+drop policy if exists fx_write on public.fx_rates;
+create policy fx_write on public.fx_rates for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists settings_read on public.settings;
 create policy settings_read on public.settings for select to authenticated using (public.is_active());
@@ -346,7 +412,9 @@ begin
 end $$;
 
 -- ---------- Yetkiler ----------
-revoke all on public.profiles, public.listings, public.contacts, public.interactions, public.settings, public.team_matches from anon;
+revoke all on public.profiles, public.listings, public.contacts, public.interactions, public.settings, public.team_matches, public.fx_rates from anon;
+grant select, insert, update, delete on public.fx_rates to authenticated;
+grant execute on function public.current_usd_try() to authenticated;
 grant select, update, delete on public.team_matches to authenticated;
 revoke execute on function public.refresh_team_matches(uuid) from public, anon;
 grant execute on function public.refresh_team_matches(uuid) to authenticated;

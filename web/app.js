@@ -2,7 +2,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import {
   TYPES, OUTCOMES, REGIONS, norm, parseNum, phoneNorm, phoneFmt, fmtUSD, fmtShort,
-  parseVCF, parseCSV, prepareImport, matchContacts, templateMessage, waLink,
+  parseVCF, parseCSV, prepareImport, matchContacts, templateMessage, waLink, fmtTRY, budgetFields,
 } from "./lib.js";
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -123,7 +123,7 @@ async function loadAll() {
       fetchAll("listings", "*", "updated_at"),
       fetchAll("contacts", "*"),
       fetchAll("interactions", "*", "happened_on"),
-      sb.from("settings").select("value,updated_at").eq("key", "fx").maybeSingle(),
+      sb.from("fx_rates").select("day,usd_try,source").order("day", { ascending: false }).limit(1).maybeSingle(),
     ]);
     S.profiles = new Map(profiles.map((p) => [p.id, p]));
     S.listings = listings.reverse();
@@ -131,15 +131,43 @@ async function loadAll() {
     for (const i of inter) { if (!hist.has(i.contact_id)) hist.set(i.contact_id, []); hist.get(i.contact_id).push(i); }
     S.contacts = contacts.map((c) => ({ ...c, hist: hist.get(c.id) || [] })).sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr"));
     S.byId = new Map(S.contacts.map((c) => [c.id, c]));
-    S.fx = fx.data ? { usd_try: Number(fx.data.value?.usd_try) || null, at: fx.data.updated_at } : null;
+    S.fx = fx.data ? { usd_try: Number(fx.data.usd_try), day: fx.data.day, source: fx.data.source } : null;
     if (S.isAdmin) await loadTeamMatches();
     S.loaded = true;
     renderAll();
+    refreshFx();
   } catch (e) {
     console.error(e);
     note("Veriler yüklenemedi. Sayfayı yenileyin; sorun sürerse yöneticinize haber verin.");
   }
 }
+// ---------------- kur (TCMB) ----------------
+const rateCache = new Map();
+async function rateFor(day) {
+  if (rateCache.has(day)) return rateCache.get(day);
+  const { data, error } = await sb.functions.invoke("fx", { body: { date: day } });
+  if (error || !(data?.usd_try > 0)) throw new Error("fx_unavailable");
+  const r = { usd_try: Number(data.usd_try), day: data.day, source: data.source, approximate: !!data.approximate };
+  if (day !== today()) rateCache.set(day, r);
+  return r;
+}
+async function refreshFx() {
+  try {
+    const r = await rateFor(today());
+    const changed = !S.fx || S.fx.usd_try !== r.usd_try;
+    S.fx = r; renderFx();
+    if (changed && S.listings.some((L) => L.price_currency === "TRY")) {
+      S.listings = (await fetchAll("listings", "*", "updated_at")).reverse(); renderListings(); renderMatches();
+    }
+  } catch { /* TCMB'ye ulaşılamadı: son bilinen kur kullanılır */ }
+}
+const fxTxt = (r) => Number(r).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const dayTxt = (d) => (d ? d.split("-").reverse().join(".") : "");
+function priceTxt(L) {
+  if (L.price_currency === "TRY") return `${fmtTRY(L.price_amount)} <span class="muted">(≈ ${fmtUSD(L.price_usd)})</span>`;
+  return fmtUSD(L.price_usd);
+}
+
 async function loadTeamMatches() {
   const rows = await fetchAll("team_matches", "*", "created_at");
   S.teamMatches = rows;
@@ -179,20 +207,22 @@ function renderAll() {
 // ---------------- fx ----------------
 function renderFx() {
   $("#fxVal").textContent = S.fx?.usd_try ? S.fx.usd_try.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
-  $("#fxVal").title = S.fx?.at ? "Güncelleme: " + new Date(S.fx.at).toLocaleDateString("tr-TR") : "Kur girilmedi";
+  $("#fxVal").title = S.fx ? `${dayTxt(S.fx.day)} · ${S.fx.source === "manual" ? "elle girildi" : "TCMB döviz satış"}` : "Kur alınamadı";
   updateConv();
 }
 $("#fxEdit").onclick = () => {
-  const n = h(`${dHead("Dolar kuru", "Tutarlar dolar olarak saklanır; TL karşılıkları bu kurla gösterilir.")}
+  const n = h(`${dHead("Dolar kuru", "Kur her gün TCMB’den otomatik alınır. Gerekirse bugünün kurunu elle değiştirebilirsiniz.")}
     <div class="stack"><label class="f">1 USD kaç TL?<input id="fx-in" inputmode="decimal" value="${S.fx?.usd_try ? String(S.fx.usd_try).replace(".", ",") : ""}" placeholder="42,50"></label>
-    <div class="muted small-t">Güncel kuru bankanızdan ya da TCMB’den bakıp girin. Son güncelleme: ${S.fx?.at ? new Date(S.fx.at).toLocaleString("tr-TR") : "yok"}</div>
+    <div class="muted small-t">Şu an kullanılan: ${S.fx ? `${fxTxt(S.fx.usd_try)} ₺ · ${dayTxt(S.fx.day)} · ${S.fx.source === "manual" ? "elle girildi" : "TCMB"}` : "yok"}. Elle girilen kur, TL fiyatlı mülklerin dolar karşılığını hemen günceller.</div>
     <div><button class="btn primary" type="button" id="fx-save">Kaydet</button></div></div>`);
   $("#fx-save", n).onclick = async () => {
     const v = parseFloat($("#fx-in", n).value.replace(/\./g, "").replace(",", "."));
     if (!(v > 0)) return toast("Geçerli bir kur girin");
-    const { error } = await sb.from("settings").upsert({ key: "fx", value: { usd_try: v } });
+    const { error } = await sb.from("fx_rates").upsert({ day: today(), usd_try: v, source: "manual" });
     if (error) return toast("Kaydedilemedi");
-    S.fx = { usd_try: v, at: new Date().toISOString() }; renderFx(); renderMatches(); toast("Kur güncellendi"); closeDrawer();
+    S.fx = { usd_try: v, day: today(), source: "manual" }; renderFx();
+    S.listings = (await fetchAll("listings", "*", "updated_at")).reverse(); renderListings(); renderMatches();
+    toast("Kur güncellendi"); closeDrawer();
   };
   openDrawer(n);
 };
@@ -203,15 +233,16 @@ $("#regionList").innerHTML = REGIONS.map((r) => `<option value="${esc(r)}">`).jo
 function updateConv() {
   const v = parseNum($("#lf-price").value), cur = $("#lf-cur").value, fx = S.fx?.usd_try, el = $("#lf-conv");
   if (!v) { el.textContent = ""; return; }
-  if (!fx) { el.textContent = cur === "TRY" ? "TL fiyatı dolara çevirmek için kurun girilmiş olması gerekir." : ""; return; }
-  el.textContent = cur === "USD" ? "≈ " + Math.round(v * fx).toLocaleString("tr-TR") + " ₺ (güncel kurla)" : "≈ " + fmtUSD(v / fx) + " olarak kaydedilir";
+  if (!fx) { el.textContent = cur === "TRY" ? "Kur henüz alınamadı; TL fiyatlı mülk kaydetmek için biraz sonra tekrar deneyin." : ""; return; }
+  el.textContent = cur === "USD" ? "≈ " + fmtTRY(v * fx) + " (bugünkü kurla)" : "Bugünkü kurla ≈ " + fmtUSD(v / fx) + ". Fiyat TL olarak saklanır, dolar karşılığı kur değiştikçe güncellenir.";
 }
 $("#lf-price").oninput = updateConv; $("#lf-cur").onchange = updateConv;
 function fillForm(L) {
   $("#lfTitle").textContent = L ? "Portföyü düzenle" : "Yeni portföy";
   $("#lf-title").value = L?.title || ""; $("#lf-type").value = L?.prop_type || TYPES[0];
   $("#lf-region").value = L?.region || ""; $("#lf-hood").value = L?.hood || ""; $("#lf-m2").value = L?.m2 || "";
-  $("#lf-price").value = L?.price_usd ? Math.round(L.price_usd).toLocaleString("tr-TR") : ""; $("#lf-cur").value = "USD";
+  const amt = L ? (L.price_currency === "TRY" ? L.price_amount : L.price_usd) : null;
+  $("#lf-price").value = amt ? Math.round(amt).toLocaleString("tr-TR") : ""; $("#lf-cur").value = L?.price_currency || "USD";
   $("#lf-desc").value = L?.description || "";
   $("#lf-new").hidden = !L; $("#lf-del").hidden = !L; $("#lf-save").textContent = L ? "Güncelle ve eşleştir" : "Kaydet ve eşleştir";
   updateConv();
@@ -229,10 +260,12 @@ $("#listingForm").onsubmit = async (e) => {
   e.preventDefault();
   let price = parseNum($("#lf-price").value);
   if (!price) return toast("Fiyatı girin");
-  if ($("#lf-cur").value === "TRY") { if (!S.fx?.usd_try) return toast("TL için önce kurun girilmesi gerekir"); price /= S.fx.usd_try; }
+  const isTry = $("#lf-cur").value === "TRY";
+  if (isTry && !S.fx?.usd_try) return toast("Kur henüz alınamadı, biraz sonra tekrar deneyin");
   const L = {
     title: $("#lf-title").value.trim(), prop_type: $("#lf-type").value, region: $("#lf-region").value.trim(),
-    hood: $("#lf-hood").value.trim(), m2: parseNum($("#lf-m2").value), price_usd: Math.round(price), description: $("#lf-desc").value.trim(),
+    hood: $("#lf-hood").value.trim(), m2: parseNum($("#lf-m2").value), description: $("#lf-desc").value.trim(),
+    ...(isTry ? { price_currency: "TRY", price_amount: Math.round(price) } : { price_currency: "USD", price_usd: Math.round(price) }),
   };
   const btn = $("#lf-save"); btn.disabled = true;
   try {
@@ -250,7 +283,7 @@ function renderListings() {
   const el = $("#listingList");
   if (!S.listings.length) { el.innerHTML = `<div class="empty" style="padding:16px">Henüz portföy yok. Yukarıdaki formla ilk mülkü ekleyin.</div>`; return; }
   el.innerHTML = S.listings.map((L) => `<button class="lcard" type="button" data-id="${esc(L.id)}" aria-current="${L.id === S.sel}">
-    <div class="t">${esc(L.title)}</div><div class="m"><span>${esc(L.prop_type)}</span><span>${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""}</span><span class="num">${fmtUSD(L.price_usd)}</span>
+    <div class="t">${esc(L.title)}</div><div class="m"><span>${esc(L.prop_type)}</span><span>${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""}</span><span class="num">${priceTxt(L)}</span>
     ${L.m2 ? `<span class="num">${Number(L.m2).toLocaleString("tr-TR")} m²</span>` : ""}${S.isAdmin && L.created_by !== S.me.id ? `<span>· ${esc(pname(L.created_by))}</span>` : ""}</div></button>`).join("");
   $$(".lcard", el).forEach((b) => (b.onclick = () => { S.sel = b.dataset.id; S.lastTeamCount = null; fillForm(S.listings.find((x) => x.id === S.sel)); renderListings(); renderMatches(); }));
 }
@@ -268,7 +301,7 @@ function renderMatches() {
   const teamNote = !S.isAdmin && S.lastTeamCount > 0
     ? `<div class="info-banner" style="margin:8px 0">Ekipte bu portföye uyabilecek başka alıcılar da var. Yöneticinize bildirildi, sizinle iletişime geçecek.</div>` : "";
   const head = `<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><div style="min-width:0"><h3>${esc(L.title)}</h3>
-    <div class="muted small-t">${esc(L.prop_type)} · ${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""} · <span class="num">${fmtUSD(L.price_usd)}</span>${S.fx?.usd_try ? ` <span class="num">(≈ ${(L.price_usd * S.fx.usd_try / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} M ₺)</span>` : ""}</div></div>
+    <div class="muted small-t">${esc(L.prop_type)} · ${esc(L.region)}${L.hood ? " / " + esc(L.hood) : ""} · <span class="num">${priceTxt(L)}</span>${S.fx?.usd_try && L.price_currency !== "TRY" ? ` <span class="num">(≈ ${(L.price_usd * S.fx.usd_try / 1e6).toLocaleString("tr-TR", { maximumFractionDigits: 1 })} M ₺)</span>` : ""}</div></div>
     <span class="chip"><b class="num">${list.length}</b>&nbsp;olası alıcı · ${scope}</span></div>${teamNote}`;
   const ai = `<div class="sec" style="margin-top:10px"><div class="row" style="align-items:center;justify-content:space-between"><div class="muted small-t" style="max-width:52ch">Notlar serbest yazıldıysa (“Urla tarafına bakıyordu, parası var”) Claude notları okuyup kaçan kişileri bulabilir.</div><button class="btn small" id="aiScanBtn" type="button">Notları Claude ile tara</button></div><div id="aiScanOut"></div></div>`;
   el.innerHTML = head + (list.length
@@ -364,7 +397,7 @@ function renderContacts() {
   el.innerHTML = `<table><thead><tr><th>Kişi</th><th>Bütçe</th><th>Bölge / tür</th><th>Not</th>${S.isAdmin ? "<th>Danışman</th>" : ""}</tr></thead><tbody>
     ${rows.slice(0, renderLimit).map((c) => `<tr class="click" data-id="${esc(c.id)}" tabindex="0">
       <td><div style="font-weight:600">${esc(c.name || "İsimsiz")}${c.tier ? ` <span class="chip" style="font-size:11px">${esc(c.tier)}</span>` : ""}</div><div class="num muted" style="font-size:12.5px">${phoneFmt(c.phone)}</div></td>
-      <td class="num" style="white-space:nowrap">${c.budget_max ? (c.budget_min ? fmtShort(c.budget_min) + "–" : "") + fmtShort(c.budget_max) : '<span class="muted">—</span>'}</td>
+      <td class="num" style="white-space:nowrap">${c.budget_max ? (c.budget_min ? fmtShort(c.budget_min) + "–" : "") + fmtShort(c.budget_max) + (c.budget_currency === "TRY" && c.budget_fx_day ? ` <span class="muted" title="${esc("TL girildi, " + dayTxt(c.budget_fx_day) + " kuruyla")}">₺</span>` : "") : '<span class="muted">—</span>'}</td>
       <td><div class="chips">${(c.regions || []).map((r) => `<span class="chip region">${esc(r)}</span>`).join("")}${(c.types || []).map((r) => `<span class="chip">${esc(r)}</span>`).join("")}</div></td>
       <td><div class="note">${esc(c.note || "")}</div></td>${S.isAdmin ? `<td class="muted" style="font-size:13px;white-space:nowrap">${esc(c.owner_id === S.me.id ? "Ben" : pname(c.owner_id))}</td>` : ""}</tr>`).join("")}</tbody></table>
     <div class="row" style="justify-content:space-between;align-items:center;margin-top:10px"><span class="muted">${rows.length.toLocaleString("tr-TR")} kişiden ${Math.min(renderLimit, rows.length).toLocaleString("tr-TR")} tanesi</span>${rows.length > renderLimit ? `<button class="btn small" type="button" id="more">Daha fazla göster</button>` : ""}</div>`;
@@ -392,6 +425,17 @@ function confirmBox(title, sub, fn, yes = "Evet, sil") {
   return n;
 }
 
+const budgetIn = (c, k) => {
+  const v = c.budget_currency === "TRY" ? c["budget_" + k + "_try"] : c["budget_" + k];
+  return v ? Math.round(v).toLocaleString("tr-TR") : "";
+};
+function budgetInfo(c) {
+  if (c.budget_currency !== "TRY" || !c.budget_fx) return "";
+  const tl = [c.budget_min_try, c.budget_max_try].filter((x) => x != null).map(fmtTRY).join(" – ");
+  const usd = [c.budget_min, c.budget_max].filter((x) => x != null).map(fmtUSD).join(" – ");
+  return `${tl} girildi · ${dayTxt(c.budget_fx_day)} kuru ${fxTxt(c.budget_fx)} ile <b class="num">${usd}</b> olarak saklanıyor. Eşleştirmede bu dolar değeri kullanılır.`;
+}
+
 function contactBox(c) {
   const isNew = !c;
   c = c || { name: "", regions: [], types: [], hist: [] };
@@ -403,28 +447,41 @@ function contactBox(c) {
       <label class="f">Telefon<input id="c-phone" value="${isNew ? "" : esc(phoneFmt(c.phone))}" ${isNew ? "" : "disabled"} inputmode="tel" placeholder="0532 123 45 67"></label></div>
     <label class="f">Notlar (kim, ne iş yapar, ne arıyor)<textarea id="c-note" placeholder="Ör. Bornova’da iki eczanesi var. 2–3 milyon $ arası Urla/Çeşme’de villa bakıyor. 1,5 yıl önce Güzelbahçe arsasıyla ilgilendi, fiyat yüksek geldi.">${esc(c.note || "")}</textarea></label>
     <div class="row" style="align-items:center"><button class="btn small" type="button" id="c-ai">Nottan alanları doldur (Claude)</button><span class="muted small-t" id="c-ai-st">Bütçe, bölge, tür ve geçmiş görüşmeleri notunuzdan çıkarır.</span></div>
-    <div class="row"><label class="f">Bütçe en az ($)<input id="c-min" inputmode="numeric" value="${c.budget_min ? Math.round(c.budget_min).toLocaleString("tr-TR") : ""}" placeholder="1.500.000"></label>
-      <label class="f">Bütçe en çok ($)<input id="c-max" inputmode="numeric" value="${c.budget_max ? Math.round(c.budget_max).toLocaleString("tr-TR") : ""}" placeholder="3.000.000"></label>
+    <div class="row"><label class="f" style="flex:0 1 110px">Bütçe birimi<select id="c-cur"><option value="USD" ${c.budget_currency === "TRY" ? "" : "selected"}>$ USD</option><option value="TRY" ${c.budget_currency === "TRY" ? "selected" : ""}>₺ TL</option></select></label>
+      <label class="f">Bütçe en az<input id="c-min" inputmode="numeric" value="${budgetIn(c, "min")}" placeholder="1.500.000"></label>
+      <label class="f">Bütçe en çok<input id="c-max" inputmode="numeric" value="${budgetIn(c, "max")}" placeholder="3.000.000"></label>
       <label class="f">Potansiyel<select id="c-tier"><option value="">—</option>${["A", "B", "C"].map((t) => `<option ${c.tier === t ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
+    <div class="muted small-t" id="c-budget-info">${budgetInfo(c)}</div>
     <label class="f">İlgilendiği bölgeler (virgülle)<input id="c-reg" value="${esc((c.regions || []).join(", "))}" placeholder="Urla, Çeşme, Güzelbahçe"></label>
     <div><div class="lbl">Aradığı mülk türleri</div><div class="chips" id="c-types">${TYPES.map((t) => `<button type="button" class="chip toggle" aria-pressed="${(c.types || []).includes(t)}">${esc(t)}</button>`).join("")}</div></div>
     <div id="c-pending" class="muted small-t"></div>
     <div class="row"><button class="btn primary" type="button" id="c-save">${isNew ? "Kişiyi ekle" : "Kaydet"}</button>${isNew ? "" : `<button class="btn ghost" type="button" id="c-del">Kişiyi sil</button>`}</div>
-    ${isNew ? "" : `<div class="sec"><h4>Geçmiş görüşmeler ve mülkler</h4><div id="c-hist">${hist.length ? hist.map((x) => `<div class="hist-item"><span class="d">${esc((x.happened_on || "").slice(0, 7))}</span><span><b>${esc(x.region)}</b> ${esc(x.prop_type)}${x.price_usd ? ` <span class="num">${fmtShort(x.price_usd)}</span>` : ""} · ${esc(x.outcome)}${x.note ? `<div class="muted small-t">${esc(x.note)}</div>` : ""}</span><button class="btn ghost small" type="button" data-hdel="${esc(x.id)}">Sil</button></div>`).join("") : `<div class="muted" style="font-size:14px">Henüz kayıt yok. “1,5 yıl önce Güzelbahçe’de arsa sundum, olmadı” gibi bir kayıt, o bölgeden mülk geldiğinde bu kişiyi öne çıkarır.</div>`}</div>
+    ${isNew ? "" : `<div class="sec"><h4>Geçmiş görüşmeler ve mülkler</h4><div id="c-hist">${hist.length ? hist.map((x) => `<div class="hist-item"><span class="d">${esc((x.happened_on || "").slice(0, 7))}</span><span><b>${esc(x.region)}</b> ${esc(x.prop_type)}${x.price_usd ? ` <span class="num">${fmtShort(x.price_usd)}</span>${x.price_try ? ` <span class="muted num" title="${esc("Kur: " + x.price_fx)}">(${fmtTRY(x.price_try)})</span>` : ""}` : ""} · ${esc(x.outcome)}${x.note ? `<div class="muted small-t">${esc(x.note)}</div>` : ""}</span><button class="btn ghost small" type="button" data-hdel="${esc(x.id)}">Sil</button></div>`).join("") : `<div class="muted" style="font-size:14px">Henüz kayıt yok. “1,5 yıl önce Güzelbahçe’de arsa sundum, olmadı” gibi bir kayıt, o bölgeden mülk geldiğinde bu kişiyi öne çıkarır.</div>`}</div>
       <form id="h-form" class="stack" style="margin-top:12px" autocomplete="off"><div class="row"><label class="f">Tarih<input type="month" id="h-date" value="${today().slice(0, 7)}"></label><label class="f">Bölge<input id="h-reg" list="regionList" required placeholder="Güzelbahçe"></label><label class="f">Tür<select id="h-type"><option value=""></option>${TYPES.map((t) => `<option>${esc(t)}</option>`).join("")}</select></label></div>
-      <div class="row"><label class="f">Tutar ($)<input id="h-price" inputmode="numeric" placeholder="450.000"></label><label class="f">Sonuç<select id="h-out">${OUTCOMES.map((o) => `<option>${esc(o)}</option>`).join("")}</select></label></div>
+      <div class="row"><label class="f" style="flex:0 1 110px">Birim<select id="h-cur"><option value="USD">$ USD</option><option value="TRY">₺ TL</option></select></label><label class="f">Tutar<input id="h-price" inputmode="numeric" placeholder="450.000"></label><label class="f" id="h-fx-wrap" hidden>O tarihteki kur<input id="h-fx" inputmode="decimal"></label></div>
+      <div class="muted small-t" id="h-fx-info" hidden></div>
+      <div class="row"><label class="f">Sonuç<select id="h-out">${OUTCOMES.map((o) => `<option>${esc(o)}</option>`).join("")}</select></label></div>
       <label class="f">Kısa not<input id="h-note" placeholder="Fiyatı yüksek buldu, 400 bin $ altını düşünür"></label><div><button class="btn" type="submit">Görüşme ekle</button></div></form></div>`}
   </div>`);
   $$("#c-types .chip", n).forEach((b) => (b.onclick = () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
   let pendingHist = [];
   const collect = () => ({
     name: $("#c-name", n).value.trim(), note: $("#c-note", n).value.trim(),
-    budget_min: parseNum($("#c-min", n).value), budget_max: parseNum($("#c-max", n).value), tier: $("#c-tier", n).value || null,
+    ...budgetFields({ currency: $("#c-cur", n).value, min: parseNum($("#c-min", n).value), max: parseNum($("#c-max", n).value), rate: S.fx?.usd_try, day: today(), prev: isNew ? null : c }),
+    tier: $("#c-tier", n).value || null,
     regions: $("#c-reg", n).value.split(",").map((s) => s.trim()).filter(Boolean),
     types: $$("#c-types .chip[aria-pressed=true]", n).map((b) => b.textContent),
   });
+  const budgetPreview = () => {
+    const cur = $("#c-cur", n).value, mx = parseNum($("#c-max", n).value), mn = parseNum($("#c-min", n).value);
+    if (cur !== "TRY" || (mx == null && mn == null)) { $("#c-budget-info", n).innerHTML = cur === "TRY" ? "TL girilen bütçe, kaydettiğiniz günün kuruyla dolara çevrilip sabitlenir." : ""; return; }
+    try { const f = budgetFields({ currency: "TRY", min: mn, max: mx, rate: S.fx?.usd_try, day: today(), prev: isNew ? null : c }); $("#c-budget-info", n).innerHTML = budgetInfo(f); }
+    catch { $("#c-budget-info", n).textContent = "Kur henüz alınamadı; TL bütçe kaydetmek için biraz sonra tekrar deneyin."; }
+  };
+  ["c-cur", "c-min", "c-max"].forEach((id) => $("#" + id, n).addEventListener("input", budgetPreview));
   $("#c-save", n).onclick = async () => {
-    const data = collect();
+    let data;
+    try { data = collect(); } catch { return toast("Kur henüz alınamadı, TL bütçe kaydedilemiyor. Biraz sonra tekrar deneyin."); }
     try {
       let row;
       if (isNew) {
@@ -453,13 +510,32 @@ function contactBox(c) {
   const hf = $("#h-form", n);
   if (hf) hf.onsubmit = async (e) => {
     e.preventDefault();
+    const amount = parseNum($("#h-price", n).value), isTry = $("#h-cur", n).value === "TRY";
+    const fx = isTry ? parseFloat(String($("#h-fx", n).value).replace(/\./g, "").replace(",", ".")) : null;
+    if (isTry && amount && !(fx > 0)) return toast("O tarihteki dolar kurunu girin");
     const x = { contact_id: c.id, happened_on: ($("#h-date", n).value || today().slice(0, 7)) + "-01", region: $("#h-reg", n).value.trim(), prop_type: $("#h-type", n).value,
-      price_usd: parseNum($("#h-price", n).value), outcome: $("#h-out", n).value, note: $("#h-note", n).value.trim() };
+      price_usd: amount ? (isTry ? Math.round(amount / fx) : amount) : null, price_try: isTry ? amount : null, price_fx: isTry && amount ? fx : null,
+      outcome: $("#h-out", n).value, note: $("#h-note", n).value.trim() };
     const { data, error } = await sb.from("interactions").insert(x).select().single();
     if (error) return toast("Kaydedilemedi");
     const cur = S.byId.get(c.id); upsertLocalContact({ ...cur, hist: [...cur.hist, data] }); renderAll(); toast("Görüşme eklendi");
     openDrawer(contactBox(S.byId.get(c.id)));
   };
+  const fillHistRate = async () => {
+    if (!hf) return;
+    const isTry = $("#h-cur", n).value === "TRY";
+    $("#h-fx-wrap", n).hidden = !isTry; $("#h-fx-info", n).hidden = !isTry;
+    if (!isTry) return;
+    const month = $("#h-date", n).value || today().slice(0, 7);
+    const day = month === today().slice(0, 7) ? today() : month + "-15";
+    $("#h-fx-info", n).textContent = "Kur getiriliyor…";
+    try {
+      const r = await rateFor(day);
+      $("#h-fx", n).value = fxTxt(r.usd_try);
+      $("#h-fx-info", n).textContent = `${dayTxt(r.day)} TCMB kuru${r.approximate ? " (yaklaşık)" : ""}. TL tutar bu kurla dolara çevrilip saklanır; isterseniz kuru değiştirin.`;
+    } catch { $("#h-fx-info", n).textContent = "Kur alınamadı. O tarihteki kuru elle girin."; }
+  };
+  if (hf) { $("#h-cur", n).onchange = fillHistRate; $("#h-date", n).onchange = fillHistRate; }
   $$("[data-hdel]", n).forEach((b) => (b.onclick = async () => {
     const { error } = await sb.from("interactions").delete().eq("id", b.dataset.hdel);
     if (error) return toast("Silinemedi");
@@ -471,17 +547,28 @@ function contactBox(c) {
     btn.disabled = true; st.textContent = "Claude notu okuyor…";
     try {
       const r = await callAI({ task: "extract", note, usd_try: S.fx?.usd_try || null, types: TYPES, outcomes: OUTCOMES });
-      if (r.budget_min) $("#c-min", n).value = Math.round(r.budget_min).toLocaleString("tr-TR");
-      if (r.budget_max) $("#c-max", n).value = Math.round(r.budget_max).toLocaleString("tr-TR");
+      if (r.budget_min || r.budget_max) {
+        $("#c-cur", n).value = r.budget_currency === "TRY" ? "TRY" : "USD";
+        $("#c-min", n).value = r.budget_min ? Math.round(r.budget_min).toLocaleString("tr-TR") : "";
+        $("#c-max", n).value = r.budget_max ? Math.round(r.budget_max).toLocaleString("tr-TR") : "";
+        budgetPreview();
+      }
       if (r.regions?.length) { const cur = $("#c-reg", n).value.split(",").map((s) => s.trim()).filter(Boolean); $("#c-reg", n).value = [...new Set([...cur, ...r.regions.map(String)])].join(", "); }
       if (Array.isArray(r.types)) $$("#c-types .chip", n).forEach((b) => { if (r.types.includes(b.textContent)) b.setAttribute("aria-pressed", "true"); });
       if (r.tier && !$("#c-tier", n).value) $("#c-tier", n).value = r.tier;
-      pendingHist = (r.history || []).filter((x) => x && x.region).map((x) => ({
-        happened_on: /^\d{4}-\d{2}-\d{2}$/.test(x.date) ? x.date : /^\d{4}-\d{2}$/.test(x.date) ? x.date + "-01" : today(),
-        region: String(x.region).slice(0, 80), prop_type: TYPES.includes(x.type) ? x.type : "", price_usd: Number(x.price_usd) || null,
-        outcome: OUTCOMES.includes(x.outcome) ? x.outcome : "İlgilendi", note: String(x.note || "").slice(0, 300),
-      }));
-      $("#c-pending", n).innerHTML = pendingHist.length ? "Kaydedince eklenecek geçmiş görüşmeler: " + pendingHist.map((x) => `<b>${esc(x.happened_on.slice(0, 7))} ${esc(x.region)}</b> ${esc(x.prop_type)} · ${esc(x.outcome)}`).join("; ") : "";
+      pendingHist = [];
+      for (const x of (r.history || []).filter((x) => x && x.region)) {
+        const happened_on = /^\d{4}-\d{2}-\d{2}$/.test(x.date) ? x.date : /^\d{4}-\d{2}$/.test(x.date) ? x.date + "-01" : today();
+        const amount = Number(x.price) || null;
+        let price_usd = amount, price_try = null, price_fx = null;
+        if (amount && x.price_currency === "TRY") {
+          try { const fr = await rateFor(happened_on > today() ? today() : happened_on); price_fx = fr.usd_try; price_try = amount; price_usd = Math.round(amount / fr.usd_try); }
+          catch { price_usd = null; price_try = amount; }
+        }
+        pendingHist.push({ happened_on, region: String(x.region).slice(0, 80), prop_type: TYPES.includes(x.type) ? x.type : "", price_usd, price_try, price_fx,
+          outcome: OUTCOMES.includes(x.outcome) ? x.outcome : "İlgilendi", note: String(x.note || "").slice(0, 300) });
+      }
+      $("#c-pending", n).innerHTML = pendingHist.length ? "Kaydedince eklenecek geçmiş görüşmeler: " + pendingHist.map((x) => `<b>${esc(x.happened_on.slice(0, 7))} ${esc(x.region)}</b> ${esc(x.prop_type)}${x.price_usd ? " " + fmtShort(x.price_usd) : ""}${x.price_try ? ` (${fmtTRY(x.price_try)}${x.price_fx ? ", " + dayTxt(x.happened_on) + " kuru " + fxTxt(x.price_fx) : ", kur bulunamadı"})` : ""} · ${esc(x.outcome)}`).join("; ") : "";
       st.textContent = "Alanlar dolduruldu. Kontrol edip Kaydet’e basın.";
     } catch (e) { st.textContent = aiErr(e); }
     finally { btn.disabled = false; }
@@ -492,7 +579,7 @@ function contactBox(c) {
 function messageBox(c, L) {
   const signer = S.me.full_name || "";
   const n = h(`${dHead("WhatsApp mesajı", esc(c.name || "") + " · " + phoneFmt(c.phone))}<div class="stack msgbox">
-    <div class="muted small-t">${esc(L.title)} · <span class="num">${fmtUSD(L.price_usd)}</span></div>
+    <div class="muted small-t">${esc(L.title)} · <span class="num">${priceTxt(L)}</span></div>
     <div class="row"><label class="f">Ton<select id="m-tone"><option>Samimi ve profesyonel</option><option>Resmi</option><option>Kısa ve net</option></select></label><button class="btn" type="button" id="m-gen">Claude ile kişiye özel yaz</button></div>
     <textarea id="m-text">${esc(templateMessage(c, L, signer))}</textarea>
     <div class="muted small-t" id="m-st">Hazır şablon yüklendi. Claude, kişinin notlarına ve geçmiş görüşmelerine göre yeniden yazabilir.</div>
@@ -573,7 +660,7 @@ function renderAlerts() {
   el.innerHTML = [...byListing.entries()].map(([lid, rs]) => {
     const L = S.listings.find((x) => x.id === lid);
     rs.sort((a, b) => b.score - a.score);
-    return `<div class="panel stack"><div><h3>${esc(L.title)}</h3><div class="muted small-t">${esc(pname(L.created_by))} girdi · ${esc(L.prop_type)} · ${esc(L.region)} · <span class="num">${fmtUSD(L.price_usd)}</span></div></div>
+    return `<div class="panel stack"><div><h3>${esc(L.title)}</h3><div class="muted small-t">${esc(pname(L.created_by))} girdi · ${esc(L.prop_type)} · ${esc(L.region)} · <span class="num">${priceTxt(L)}</span></div></div>
       ${rs.map((r) => { const c = S.byId.get(r.contact_id); return `<div class="match"><div class="score ${r.score >= 60 ? "hi" : r.score >= 40 ? "md" : ""}">${esc(r.score)}</div><div style="min-width:0">
         <div class="nm">${esc(c.name || "İsimsiz")}</div><div class="ph">${phoneFmt(c.phone)}</div>
         <div class="why chips"><span class="chip owner">${esc(c.owner_id === S.me.id ? "Benim rehberim" : pname(c.owner_id) + " rehberinde")}</span>${(r.reasons || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div></div>

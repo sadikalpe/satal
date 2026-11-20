@@ -231,3 +231,24 @@ export function templateMessage(c, L, signer = "") {
 }
 
 export const waLink = (phone, text) => `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+
+export const fmtTRY = (n) => (n == null || n === "" ? "" : Math.round(n).toLocaleString("tr-TR") + " ₺");
+
+// Alıcının bütçesi: her zaman dolar saklanır. TL girildiyse girildiği günün kuruyla sabitlenir.
+// TL tutarlar değişmediyse eski kur ve tarih korunur (kişinin gücü o günkü dolar değerinde kalır).
+// rate: bugünün kuru (TL girişinde gerekir), day: bugünün tarihi, prev: kişinin mevcut kaydı
+export function budgetFields({ currency, min, max, rate, day, prev }) {
+  if (currency !== "TRY") {
+    return { budget_currency: "USD", budget_min: min ?? null, budget_max: max ?? null, budget_min_try: null, budget_max_try: null, budget_fx: null, budget_fx_day: null };
+  }
+  if (min == null && max == null) {
+    return { budget_currency: "TRY", budget_min: null, budget_max: null, budget_min_try: null, budget_max_try: null, budget_fx: null, budget_fx_day: null };
+  }
+  const same = (a, b) => (a == null && b == null) || (a != null && b != null && Math.round(Number(a)) === Math.round(Number(b)));
+  if (prev && prev.budget_currency === "TRY" && prev.budget_fx && same(prev.budget_min_try, min) && same(prev.budget_max_try, max)) {
+    return { budget_currency: "TRY", budget_min: prev.budget_min, budget_max: prev.budget_max, budget_min_try: prev.budget_min_try, budget_max_try: prev.budget_max_try, budget_fx: prev.budget_fx, budget_fx_day: prev.budget_fx_day };
+  }
+  if (!(rate > 0)) throw new Error("rate_missing");
+  const usd = (x) => (x == null ? null : Math.round(x / rate));
+  return { budget_currency: "TRY", budget_min: usd(min), budget_max: usd(max), budget_min_try: min ?? null, budget_max_try: max ?? null, budget_fx: rate, budget_fx_day: day };
+}

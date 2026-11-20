@@ -65,8 +65,9 @@ Açıklama: ${str(L.description, 1500) || "yok"}`;
 const EXTRACT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["budget_min", "budget_max", "regions", "types", "tier", "history"],
+  required: ["budget_currency", "budget_min", "budget_max", "regions", "types", "tier", "history"],
   properties: {
+    budget_currency: { type: "string", enum: ["USD", "TRY"] },
     budget_min: { type: ["number", "null"] },
     budget_max: { type: ["number", "null"] },
     regions: { type: "array", items: { type: "string" } },
@@ -77,10 +78,11 @@ const EXTRACT_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["date", "region", "type", "price_usd", "outcome", "note"],
+        required: ["date", "region", "type", "price", "price_currency", "outcome", "note"],
         properties: {
           date: { type: "string" }, region: { type: "string" }, type: { type: "string" },
-          price_usd: { type: ["number", "null"] }, outcome: { type: "string" }, note: { type: "string" },
+          price: { type: ["number", "null"] }, price_currency: { type: "string", enum: ["USD", "TRY"] },
+          outcome: { type: "string" }, note: { type: "string" },
         },
       },
     },
@@ -91,7 +93,8 @@ function extractPrompt(p: Record<string, any>) {
   const types = (Array.isArray(p.types) ? p.types : []).map((t: unknown) => str(t, 40)).join(", ");
   const outcomes = (Array.isArray(p.outcomes) ? p.outcomes : []).map((t: unknown) => str(t, 40)).join(", ");
   return `Bir emlak danışmanının müşteri notunu yapılandır. Bugünün tarihi ${new Date().toISOString().slice(0, 10)}.
-- Tutarları ABD doları olarak ver. TL geçiyorsa 1 USD = ${Number(p.usd_try) || "bilinmiyor"} TL ile çevir; kur bilinmiyorsa TL tutarı atla.
+- Tutarları ÇEVİRME: notta hangi para birimiyle yazıldıysa o tutarı ve para birimini ver ("6 milyon TL" → 6000000 ve TRY, "2M$" → 2000000 ve USD). Para birimi yazılmamışsa ve tutar milyonlarca liralık bir mülk fiyatına benziyorsa TRY, aksi halde USD say. Çevirme işini uygulama doğru tarihin kuruyla yapacak.
+- budget_currency: bütçe tutarlarının para birimi (bütçe yoksa USD).
 - "1,5 yıl önce", "geçen yaz" gibi ifadeleri bugüne göre YYYY-MM-DD tarihine çevir (gün bilinmiyorsa 01).
 - Mülk türleri yalnızca şunlardan biri olabilir: ${types}. Görüşme sonucu yalnızca şunlardan biri: ${outcomes}.
 - tier: A = yüksek alım gücü, B = orta, C = düşük ya da belirsiz. Nottan anlaşılmıyorsa null.

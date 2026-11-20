@@ -1,4 +1,4 @@
-# STA Gayrimenkul Portföy CRM
+# Satal — STA Gayrimenkul Portföy CRM
 
 `crm.stagayrimenkul.com.tr` adresinde çalışacak, danışmanların rehberlerini yükleyip kişilere bütçe, bölge ve geçmiş görüşme notu yazdığı; yeni bir portföye uygun alıcıları bulup kişiye özel WhatsApp mesajı hazırlayan CRM.
 
@@ -10,6 +10,10 @@
   - *Danışman:* yalnızca kendi rehberini ve kendi portföylerini görür.
 - **Ekip eşleşmeleri:** Bir danışmanın girdiği portföy başka bir danışmanın (ya da yöneticinin) rehberindeki birine uyuyorsa bu yalnızca yöneticiye bildirilir. Bildirimler “Ekip eşleşmeleri” sekmesine düşer ve “Paylaştım” ya da “İlgisiz” diye kapatılır. Danışman yalnızca “ekipte başka uygun alıcılar da var, yöneticiye bildirildi” notunu görür; kim olduklarını görmez.
 - **Eşleştirme:** Dolar bazında bütçe, ilgilenilen bölgeler, notlar ve geçmiş görüşmeler (ör. “1,5 yıl önce Güzelbahçe arsa · Olmadı”) puanlanır.
+- **Kur ve TL tutarlar:** USD/TRY kuru her gün TCMB’den (döviz satış) otomatik alınır.
+  - *Alıcının bütçesi* TL girilirse girildiği günün kuruyla dolara çevrilip öyle saklanır. Bir yıl sonra TL değer erise de kişinin alım gücü o günkü dolar karşılığında kalır. Asıl TL tutar, kur ve tarih kayıtta görünür.
+  - *Geçmiş görüşmelerdeki tutarlar* TL girilirse görüşme tarihindeki TCMB kuru otomatik getirilir (gerekirse elle değiştirilebilir).
+  - *Satılık mülkün* TL fiyatı TL olarak kalır; dolar karşılığı her kur güncellemesinde yeniden hesaplanır.
 - **Claude:** kişiye özel WhatsApp mesajı yazar, serbest yazılmış notu bütçe, bölge ve geçmiş alanlarına ayırır, kural tabanlı taramanın kaçırdığı kişileri notlardan bulur.
 - **Rehber yükleme:** iPhone/Android `.vcf`, Google/Outlook CSV ve Excel’den kaydedilmiş CSV dosyalarını okur. Türkçe karakterler korunur, numaralar tek biçime getirilir, tekrarlar atlanır.
 
@@ -21,6 +25,7 @@
 | `supabase/migrations/` | Veritabanı tabloları ve erişim kuralları (Row Level Security). |
 | `supabase/functions/ai/` | Claude çağrıları (API anahtarı sunucuda kalır). |
 | `supabase/functions/admin-users/` | Yöneticinin danışman hesabı açma/kapatma işlemleri. |
+| `supabase/functions/fx/` | TCMB’den günlük ve geçmiş tarihli USD/TRY kuru. |
 | `tests/` | Eşleştirme ve dosya okuma testleri, veritabanı yetki testleri. |
 
 ## Kurulum (bir kez, yaklaşık 30 dakika)
@@ -58,11 +63,12 @@ Supabase’de **Edge Functions → Deploy a new function → Via Editor**:
 
 - Adı `ai` olan bir fonksiyon açın, `supabase/functions/ai/index.ts` içeriğini yapıştırıp **Deploy**’a basın.
 - Adı `admin-users` olan bir fonksiyon açın, `supabase/functions/admin-users/index.ts` içeriğini yapıştırıp **Deploy**’a basın.
+- Adı `fx` olan bir fonksiyon açın, `supabase/functions/fx/index.ts` içeriğini yapıştırıp **Deploy**’a basın (TCMB kurları).
 
 Komut satırını tercih ederseniz:
 
 ```bash
-npx supabase functions deploy ai admin-users --project-ref <proje-kodunuz>
+npx supabase functions deploy ai admin-users fx --project-ref <proje-kodunuz>
 ```
 
 ### 5. Vercel (site)
@@ -83,7 +89,7 @@ Ana site (Wix) bu işlemden etkilenmez. Kayıt genellikle birkaç dakikada, en g
 ### 7. İlk kullanım
 
 1. `crm.stagayrimenkul.com.tr` adresine kendi hesabınızla girin.
-2. Sağ üstteki **Kuru güncelle** ile dolar kurunu girin.
+2. Sağ üstte günün TCMB kuru görünür. TCMB’ye ulaşılamadığı nadir durumlarda **Kuru güncelle** ile elle girebilirsiniz.
 3. **Ekip** sekmesinden danışman hesaplarını açın: ad, e-posta, geçici şifre. Danışman ilk girişte **Hesabım** sayfasından şifresini değiştirir.
 4. **Rehber yükle** sekmesinden rehberinizi yükleyin.
 
