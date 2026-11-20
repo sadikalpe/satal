@@ -66,7 +66,10 @@ $("#forgotBtn").onclick = async () => {
   const email = $("#li-email").value.trim();
   if (!email) return authMsg("Önce e-posta adresinizi yazın, sonra “Şifremi unuttum”a basın.");
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
-  authMsg(error ? error.message : "Şifre sıfırlama bağlantısı e-postanıza gönderildi.", error ? "note" : "info");
+  const msg = error && /rate limit/i.test(error.message)
+    ? "Şu an çok fazla e-posta gönderildi, bir saat sonra tekrar deneyin ya da yöneticinizden şifrenizi sıfırlamasını isteyin."
+    : error ? error.message : "Şifre sıfırlama bağlantısı e-postanıza gönderildi.";
+  authMsg(msg, error ? "note" : "info");
 };
 $("#mfaForm").onsubmit = async (e) => {
   e.preventDefault();
