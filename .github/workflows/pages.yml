@@ -1,4 +1,4 @@
-# web/ klasörünü GitHub Pages'te yayınlar (ücretsiz). Depo > Settings > Pages > Source: "GitHub Actions" seçili olmalı.
+# web/ klasörünü GitHub Pages'te yayınlar (ücretsiz). Depo > Settings > Pages > Source: "GitHub Actions" seçili olmalı (ayarlandı).
 name: Siteyi yayınla
 on:
   push:
