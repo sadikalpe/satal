@@ -12,6 +12,8 @@ kurulacak; adresi `crm.stagayrimenkul.com.tr`, sunucu Halis Bey'in (Pixelibol) T
 - **DEVAM.md** — kaldığımız yer, bekleyen işler, kalıcı kurallar. Her oturum sonunda güncelle.
 - **Proje taslağı (canlı belge):** https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı".
   Kullanıcının aklına gelenler buraya toparlanır.
+- **`crm/`** — yeni Satal (Node.js 22 + PostgreSQL 16). Önce `crm/README.md`; kurulum `crm/KURULUM.md`.
+  Değişiklikten sonra `cd crm && npm test` (yerel PostgreSQL ister). Henüz sunucuya kurulmadı.
 - **Bu depodaki kod** (`web/`, `supabase/`, `tests/`) eski deneme sürümüdür; hâlâ yayında
   (https://sadikalpe.github.io/satal ve https://stagayrimenkul.com.tr/crm). Yeni sürüm ayrıca kurulacak.
 

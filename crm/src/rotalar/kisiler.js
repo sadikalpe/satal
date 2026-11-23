@@ -1,0 +1,415 @@
+// Kişiler: rehber listesi, kişi kartı, görüşme ve hatırlatmalar, rehber yükleme, belgeler.
+import fs from "node:fs";
+import crypto from "node:crypto";
+import { islem } from "../db.js";
+import { html, nitelik, satirli } from "../lib/html.js";
+import { sayfa, ampul, alan, paraAlani, csrfAlani, bos, danismanEtiketi } from "../gorunum/duzen.js";
+import { konumSecici, konumOku, bolgeSecici, bolgeleriOku } from "../gorunum/konum.js";
+import { kisiEtiketleri, mulkTarifi, talepTarifi, fiyatYaz, telefonBaglantisi, kapsamSecici, sayfalama, kutular, belgeBolumu, GORUSME_TURU, SONUC_ADI, MULK_DURUMU, TALEP_DURUMU, ISLEM_ADI } from "../gorunum/parcalar.js";
+import { KATEGORILER, TALEP_KATEGORILERI, kategori, kategoriAdi } from "../alan/kategoriler.js";
+import { usd } from "../alan/eslestirme.js";
+import { konumYukle, kurAl, dolaraSabitle, kaydet, KullaniciHatasi, kapsamOku, danismanlarAl, adNormSql } from "../servis/ortak.js";
+import { kisiIcinHesapla } from "../servis/eslesme.js";
+import { kisiSil } from "../servis/silme.js";
+import { dosyaTuru, dosyaKaydet, dosyaYolu, dosyaSil } from "../servis/dosya.js";
+import { dosyaOku, yuklemeHazirla } from "../lib/rehber-oku.js";
+import { metin, dizi, sayi, secim, uuidMi, tarih, isaretli } from "../lib/form.js";
+import { norm, telefonNorm, telefonYaz, tarihYaz, neKadarOnce, paraYaz, bugun, ilkAd } from "../lib/metin.js";
+import { hitapYaz } from "../alan/mesaj.js";
+
+const HITAP = [{ kod: "bey_hanim_yok", ad: "Yalnızca adıyla (Ahmet)" }, { kod: "bey", ad: "Bey (Ahmet Bey)" }, { kod: "hanim", ad: "Hanım (Ayşe Hanım)" }, { kod: "abi", ad: "Abi (Ahmet Abi)" }, { kod: "abla", ad: "Abla (Ayşe Abla)" }, { kod: "ozel", ad: "Kendim yazacağım" }];
+const POTANSIYEL = [{ kod: "", ad: "Belirtilmedi" }, { kod: "A", ad: "A — alır ya da satar" }, { kod: "B", ad: "B — belki" }, { kod: "C", ad: "C — zor" }];
+const SAYFA = 50;
+const idGerekli = (id) => { if (!uuidMi(id)) throw new KullaniciHatasi("Kayıt bulunamadı.", 404); return id; };
+
+export async function kisiGetir(q, id) {
+  const k = uuidMi(id) ? await q.bir("select * from kisiler where id = $1", [id]) : null;
+  if (!k) throw new KullaniciHatasi("Kişi bulunamadı. Silinmiş ya da size ait olmayabilir.", 404);
+  return k;
+}
+const telefonlarOku = (f) => [...new Set([f.telefon1, f.telefon2, f.telefon3].map((x) => String(x || "").trim()).filter(Boolean).map((x) => {
+  const n = telefonNorm(x);
+  if (!n) throw new KullaniciHatasi(`“${x}” geçerli bir telefon numarası değil.`);
+  return n;
+}))];
+
+// Numara bu danışmanın rehberinde başka birine kayıtlı mı?
+export async function numaraCakismasi(q, sahipId, numaralar, haricKisi = null) {
+  if (!numaralar.length) return;
+  const c = await q.bir(`select k.ad, t.numara from kisi_telefonlari t join kisiler k on k.id = t.kisi_id where t.sahip_id = $1 and t.aktif and t.numara = any($2) and ($3::uuid is null or t.kisi_id <> $3) limit 1`, [sahipId, numaralar, haricKisi]);
+  if (c) throw new KullaniciHatasi(`${telefonYaz(c.numara)} numarası rehberinizde “${c.ad}” adına zaten kayıtlı.`);
+}
+
+function kisiFormu(req, konum, k, telefonlar) {
+  const yeni = !k.id;
+  return html`<form class="form kart" method="post" action="${yeni ? "/kisiler" : `/kisiler/${k.id}`}" id="kisi-formu">${csrfAlani(req)}
+    ${alan({ ad: "ad", etiket: "Ad soyad", deger: k.ad, zorunlu: true, ek: 'maxlength="200" autocomplete="off"' })}
+    <div class="izgara uc">
+      ${alan({ ad: "telefon1", etiket: "Telefon", tip: "tel", deger: telefonYaz(telefonlar[0] || ""), zorunlu: true, yer: "05xx xxx xx xx" })}
+      ${alan({ ad: "telefon2", etiket: "İkinci telefon", tip: "tel", deger: telefonYaz(telefonlar[1] || "") })}
+      ${alan({ ad: "telefon3", etiket: "Üçüncü telefon", tip: "tel", deger: telefonYaz(telefonlar[2] || "") })}
+    </div>
+    <fieldset><legend>Mesajlarda nasıl seslenilsin? ${ampul("hitap")}</legend>
+      <div class="izgara uc">
+        ${alan({ ad: "hitap_adi", etiket: "Seslenilecek ad", deger: k.hitap_adi, yer: ilkAd(k.ad) || "örn. Ahmet", ipucu: "Boşsa ilk adı kullanılır." })}
+        ${alan({ ad: "hitap_turu", etiket: "Hitap", tip: "select", deger: k.hitap_turu, liste: HITAP })}
+        ${alan({ ad: "sen_siz", etiket: "Sen / siz", tip: "select", deger: k.sen_siz || "siz", liste: [{ kod: "siz", ad: "Siz" }, { kod: "sen", ad: "Sen" }], yardim: "sen_siz" })}
+      </div>
+      <div id="hitap-ozel-alani">${alan({ ad: "hitap_ozel", etiket: "Hitap (tam olarak böyle yazılır)", deger: k.hitap_ozel, yer: "örn. Ahmet Hocam" })}</div>
+      ${alan({ ad: "dil", etiket: "Mesaj dili", tip: "select", deger: k.dil || "tr", liste: [{ kod: "tr", ad: "Türkçe" }, { kod: "en", ad: "İngilizce" }] })}
+    </fieldset>
+    <div class="izgara iki">
+      ${alan({ ad: "potansiyel", etiket: "Potansiyel", tip: "select", deger: k.potansiyel || "", liste: POTANSIYEL, yardim: "potansiyel" })}
+      ${paraAlani({ ad: "alim_gucu", etiket: "Tahmini alım gücü", tutar: k.alim_gucu_tutar, para: k.alim_gucu_para, yardim: "alim_gucu" })}
+    </div>
+    <div class="izgara iki">
+      ${alan({ ad: "meslek", etiket: "Meslek", deger: k.meslek })}
+      ${alan({ ad: "sirket", etiket: "Şirket", deger: k.sirket })}
+    </div>
+    ${alan({ ad: "yatirimci_tipi", etiket: "Al-satçı / yatırımcı mı?", tip: "select", deger: k.yatirimci_tipi || "", liste: [{ kod: "", ad: "Hayır" }, { kod: "al_satci", ad: "Al-satçı" }, { kod: "yatirimci", ad: "Yatırımcı" }], yardim: "yatirimci" })}
+    <div id="calisma-alani">
+      ${bolgeSecici(konum, { ad: "calisma_bolge", bolgeler: k.calisma_bolgeleri || [], etiket: "Çalıştığı bölgeler" })}
+      <div class="alan"><span class="etiket">İlgilendiği türler</span>${kutular("calisma_kategorileri", KATEGORILER, k.calisma_kategorileri || [])}</div>
+    </div>
+    <label class="secenek"><input type="checkbox" name="mesaj_istemiyor" value="1"${nitelik("checked", k.mesaj_istemiyor)}> Mülk tanıtım mesajı istemiyor ${ampul("mesaj_istemiyor")}</label>
+    ${alan({ ad: "notlar", etiket: "Notlar", tip: "textarea", deger: k.notlar, ek: 'maxlength="5000"' })}
+    <button class="dugme genis">${yeni ? "Kişiyi kaydet" : "Değişiklikleri kaydet"}</button>
+  </form>`;
+}
+
+async function kisiKaydet(req, mevcut) {
+  const f = req.form, ben = req.kullanici.id;
+  const ad = metin(f.ad, 200);
+  if (ad.length < 2) throw new KullaniciHatasi("Ad soyad yazın.");
+  const telefonlar = telefonlarOku(f);
+  if (!telefonlar.length) throw new KullaniciHatasi("En az bir telefon numarası yazın.");
+  const konum = await konumYukle();
+  const yatirimci = secim(f.yatirimci_tipi, ["al_satci", "yatirimci"]);
+  const guc = sayi(f.alim_gucu_tutar), gucPara = secim(f.alim_gucu_para, ["TRY", "USD"], "TRY");
+  return islem(req.kullanici, async (q) => {
+    await numaraCakismasi(q, ben, telefonlar, mevcut?.id);
+    const sabit = dolaraSabitle({ tutar: guc, para: gucPara, kur: await kurAl(q), onceki: mevcut && { tutar: mevcut.alim_gucu_tutar, para: mevcut.alim_gucu_para, usd: mevcut.alim_gucu_usd, kur: mevcut.alim_gucu_kur, tarih: mevcut.alim_gucu_tarih } });
+    const d = [ad, metin(f.hitap_adi, 60), secim(f.hitap_turu, HITAP.map((h) => h.kod), "bey_hanim_yok"), metin(f.hitap_ozel, 80), secim(f.sen_siz, ["sen", "siz"], "siz"), secim(f.dil, ["tr", "en"], "tr"),
+      metin(f.meslek, 200), metin(f.sirket, 200), metin(f.notlar, 5000), guc, guc == null ? null : gucPara, sabit.usd, sabit.kur, sabit.tarih, secim(f.potansiyel, ["A", "B", "C"]), isaretli(f.mesaj_istemiyor),
+      yatirimci, JSON.stringify(yatirimci ? bolgeleriOku(konum, f.calisma_bolge) : []), yatirimci ? dizi(f.calisma_kategorileri).filter((x) => kategori(x)) : []];
+    let id = mevcut?.id;
+    if (id) {
+      await q(`update kisiler set ad=$2, hitap_adi=$3, hitap_turu=$4, hitap_ozel=$5, sen_siz=$6, dil=$7, meslek=$8, sirket=$9, notlar=$10, alim_gucu_tutar=$11, alim_gucu_para=$12, alim_gucu_usd=$13, alim_gucu_kur=$14, alim_gucu_tarih=$15,
+        potansiyel=$16, mesaj_istemiyor=$17, yatirimci_tipi=$18, calisma_bolgeleri=$19, calisma_kategorileri=$20, guncelleme_at=now() where id=$1`, [id, ...d]);
+      await q("delete from kisi_telefonlari where kisi_id = $1", [id]);
+    } else {
+      id = (await q.bir(`insert into kisiler (sahip_id, ad, hitap_adi, hitap_turu, hitap_ozel, sen_siz, dil, meslek, sirket, notlar, alim_gucu_tutar, alim_gucu_para, alim_gucu_usd, alim_gucu_kur, alim_gucu_tarih,
+        potansiyel, mesaj_istemiyor, yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) returning id`, [ben, ...d])).id;
+    }
+    for (const [i, n] of telefonlar.entries()) await q("insert into kisi_telefonlari (kisi_id, sahip_id, numara, ana) values ($1, $2, $3, $4)", [id, ben, n, i === 0]);
+    await kaydet(q, req, mevcut ? "kisi_degisti" : "kisi_eklendi", "kisi", id);
+    if (mevcut && mevcut.alim_gucu_usd !== sabit.usd) await kisiIcinHesapla(q, id);
+    return id;
+  });
+}
+
+export default async function (app) {
+  // ---------- Liste ----------
+  app.get("/kisiler", async (req, reply) => {
+    const s = req.query, kap = kapsamOku(req);
+    const ara = metin(s.q, 80), pot = secim(s.p, ["A", "B", "C", "yatirimci", "aranmayan"]), no = Math.max(1, Number(s.sayfa) || 1);
+    const rakam = ara.replace(/\D/g, "");
+    const v = await islem(req.kullanici, async (q) => {
+      const kosul = ["k.silindi_at is null"], p = [];
+      if (kap.sahipId) { p.push(kap.sahipId); kosul.push(`k.sahip_id = $${p.length}`); }
+      if (ara) {
+        p.push("%" + norm(ara) + "%");
+        let c = `${adNormSql("k.ad")} like $${p.length} or ${adNormSql("k.sirket")} like $${p.length}`;
+        if (rakam.length >= 3) { p.push("%" + rakam.replace(/^0/, "") + "%"); c += ` or exists (select 1 from kisi_telefonlari t where t.kisi_id = k.id and t.aktif and t.numara like $${p.length})`; }
+        kosul.push(`(${c})`);
+      }
+      if (["A", "B", "C"].includes(pot)) { p.push(pot); kosul.push(`k.potansiyel = $${p.length}`); }
+      if (pot === "yatirimci") kosul.push("k.yatirimci_tipi is not null");
+      if (pot === "aranmayan") kosul.push("coalesce(k.son_temas_at, k.olusturma_at) < now() - interval '60 days'");
+      const liste = await q(
+        `select k.id, k.ad, k.potansiyel, k.yatirimci_tipi, k.mesaj_istemiyor, k.sahip_id, k.son_temas_at, k.sirket, k.silindi_at,
+                (select numara from kisi_telefonlari t where t.kisi_id = k.id and t.aktif order by t.ana desc limit 1) as telefon,
+                (select count(*) from talepler t where t.kisi_id = k.id and t.silindi_at is null and t.durum = 'aktif') as talep,
+                (select count(*) from mulkler m where m.malik_kisi_id = k.id and m.silindi_at is null and m.durum in ('aktif', 'opsiyonlu')) as mulk
+           from kisiler k where ${kosul.join(" and ")} order by ${adNormSql("k.ad")}, k.id limit ${SAYFA + 1} offset ${(no - 1) * SAYFA}`, p);
+      const toplam = (await q.bir(`select count(*) as n from kisiler k where ${kosul.join(" and ")}`, p)).n;
+      return { liste, toplam, danismanlar: await danismanlarAl(q, req) };
+    });
+    const dahaVar = v.liste.length > SAYFA;
+    const SUZGEC = [["", "Hepsi"], ["A", "A"], ["B", "B"], ["C", "C"], ["yatirimci", "Yatırımcı"], ["aranmayan", "Uzun süredir aranmayan"]];
+    const suzgecAdresi = (kod) => "?" + new URLSearchParams({ ...(ara ? { q: ara } : {}), ...(kod ? { p: kod } : {}), ...(kap.kimin !== "ben" ? { kimin: kap.kimin } : {}) });
+    return reply.sayfa(sayfa(req, { baslik: "Kişiler", icerik: html`
+      <div class="baslik-satiri"><h1>Kişiler <small>(${v.toplam})</small></h1><div class="dugmeler"><a class="dugme ikincil kucuk" href="/kisiler/yukle">Rehber yükle</a><a class="dugme kucuk" href="/kisiler/yeni">+ Kişi</a></div></div>
+      <form class="arama" method="get"><input type="search" name="q" value="${ara}" placeholder="Ad, şirket ya da telefon ara" aria-label="Ara">${pot ? html`<input type="hidden" name="p" value="${pot}">` : ""}${kapsamSecici(v.danismanlar, kap.kimin)}<button class="dugme ikincil">Ara</button></form>
+      <div class="sekmeler">${SUZGEC.map(([kod, ad]) => html`<a href="${suzgecAdresi(kod)}"${nitelik('class="etkin"', (pot || "") === kod)}>${ad}</a>`)}</div>
+      <div class="kart">${v.liste.length ? html`<ul class="liste">${v.liste.slice(0, SAYFA).map((k) => html`<li>
+        <div class="govde"><a class="ad" href="/kisiler/${k.id}">${k.ad}</a><small>${telefonYaz(k.telefon)}${k.sirket ? " · " + k.sirket : ""}${k.talep ? ` · ${k.talep} talep` : ""}${k.mulk ? ` · ${k.mulk} mülk` : ""}</small>
+          <div class="etiketler">${kisiEtiketleri(k)}${k.sahip_id !== req.kullanici.id ? danismanEtiketi(v.danismanlar.get(k.sahip_id)) : ""}</div></div>
+        <div class="yan"><small>${k.son_temas_at ? neKadarOnce(k.son_temas_at) : ""}</small></div></li>`)}</ul>`
+        : bos(ara || pot ? "Aramanıza uyan kişi yok." : "Rehberiniz boş.", ara || pot ? "" : html`<a class="dugme" href="/kisiler/yukle">Rehberimi yükle</a>`)}</div>
+      ${sayfalama(req, no, dahaVar)}` }));
+  });
+
+  // Kişi seçici için arama (yalnızca kendi rehberi)
+  app.get("/kisiler/ara", async (req) => {
+    const ara = metin(req.query.q, 60), rakam = ara.replace(/\D/g, "").replace(/^0/, "");
+    if (ara.length < 2) return [];
+    return islem(req.kullanici, async (q) => (await q(
+      `select k.id, k.ad, (select numara from kisi_telefonlari t where t.kisi_id = k.id and t.aktif order by t.ana desc limit 1) as telefon
+         from kisiler k where k.sahip_id = $1 and k.silindi_at is null and (${adNormSql("k.ad")} like $2 or ($3 <> '' and exists (select 1 from kisi_telefonlari t where t.kisi_id = k.id and t.aktif and t.numara like $4)))
+        order by ${adNormSql("k.ad")} limit 12`, [req.kullanici.id, "%" + norm(ara) + "%", rakam.length >= 3 ? rakam : "", "%" + rakam + "%"])).map((k) => ({ id: k.id, ad: k.ad, telefon: telefonYaz(k.telefon) })));
+  });
+
+  // ---------- Yeni / düzenle ----------
+  app.get("/kisiler/yeni", async (req, reply) => reply.sayfa(sayfa(req, { baslik: "Yeni kişi", geri: { yol: "/kisiler", ad: "Kişiler" }, icerik: html`<h1>Yeni kişi</h1>${kisiFormu(req, await konumYukle(), { ad: metin(req.query.ad, 200) }, [req.query.telefon ? telefonNorm(req.query.telefon) : ""])}` })));
+  app.post("/kisiler", async (req, reply) => {
+    const id = await kisiKaydet(req, null);
+    return reply.bildir("Kişi kaydedildi.").redirect("/kisiler/" + id);
+  });
+  app.get("/kisiler/:id/duzenle", async (req, reply) => {
+    const v = await islem(req.kullanici, async (q) => {
+      const k = await kisiGetir(q, req.params.id);
+      return { k, telefonlar: (await q("select numara from kisi_telefonlari where kisi_id = $1 and aktif order by ana desc, numara", [k.id])).map((t) => t.numara) };
+    });
+    if (v.k.sahip_id !== req.kullanici.id || v.k.silindi_at) throw new KullaniciHatasi("Bu kaydı yalnızca kaydın sahibi değiştirebilir.", 403);
+    return reply.sayfa(sayfa(req, { baslik: v.k.ad, geri: { yol: "/kisiler/" + v.k.id, ad: v.k.ad }, icerik: html`<h1>Kişiyi düzenle</h1>${kisiFormu(req, await konumYukle(), v.k, v.telefonlar)}` }));
+  });
+  app.post("/kisiler/:id", async (req, reply) => {
+    const k = await islem(req.kullanici, (q) => kisiGetir(q, req.params.id));
+    if (k.sahip_id !== req.kullanici.id || k.silindi_at) throw new KullaniciHatasi("Bu kaydı yalnızca kaydın sahibi değiştirebilir.", 403);
+    await kisiKaydet(req, k);
+    return reply.bildir("Değişiklikler kaydedildi.").redirect("/kisiler/" + k.id);
+  });
+  app.post("/kisiler/:id/sil", async (req, reply) => {
+    await islem(req.kullanici, (q) => kisiSil(q, req, idGerekli(req.params.id)));
+    return reply.bildir("Kişi silindi.").redirect("/kisiler");
+  });
+
+  // ---------- Kişi kartı ----------
+  app.get("/kisiler/:id", async (req, reply) => {
+    if (!uuidMi(req.params.id)) throw new KullaniciHatasi("Kişi bulunamadı.", 404);
+    const konum = await konumYukle();
+    const v = await islem(req.kullanici, async (q) => {
+      const k = await kisiGetir(q, req.params.id);
+      return {
+        k,
+        telefonlar: await q("select numara, ana from kisi_telefonlari where kisi_id = $1 and (aktif or $2) order by ana desc, numara", [k.id, !!k.silindi_at]),
+        talepler: await q("select * from talepler where kisi_id = $1 and ($2 or silindi_at is null) order by durum, olusturma_at desc", [k.id, !!k.silindi_at]),
+        mulkler: await q("select * from mulkler where malik_kisi_id = $1 and ($2 or silindi_at is null) order by durum, olusturma_at desc", [k.id, !!k.silindi_at]),
+        gorusmeler: await q("select * from gorusmeler where kisi_id = $1 order by tarih desc, olusturma_at desc limit 60", [k.id]),
+        hatirlatmalar: await q("select * from hatirlatmalar where kisi_id = $1 and tamamlandi_at is null order by tarih", [k.id]),
+        belgeler: await q("select * from belgeler where kisi_id = $1 order by olusturma_at desc", [k.id]),
+        danismanlar: await danismanlarAl(q, req),
+      };
+    });
+    const k = v.k, benim = k.sahip_id === req.kullanici.id && !k.silindi_at;
+    const ana = v.telefonlar[0]?.numara;
+    return reply.sayfa(sayfa(req, { baslik: k.ad, geri: { yol: "/kisiler", ad: "Kişiler" }, icerik: html`
+      <div class="kart">
+        <div class="baslik-satiri"><h1>${k.ad}</h1>${benim ? html`<a class="dugme ikincil kucuk" href="/kisiler/${k.id}/duzenle">Düzenle</a>` : ""}</div>
+        <div class="etiketler">${kisiEtiketleri(k)}${!benim && k.sahip_id !== req.kullanici.id ? danismanEtiketi(v.danismanlar.get(k.sahip_id)) : ""}</div>
+        <dl class="tanim">
+          <dt>Telefon</dt><dd>${v.telefonlar.map((t, i) => html`${i ? ", " : ""}${telefonBaglantisi(t.numara)}`)}</dd>
+          <dt>Hitap</dt><dd>${hitapYaz(k)} · ${k.sen_siz === "sen" ? "sen" : "siz"}${k.dil === "en" ? " · İngilizce" : ""}</dd>
+          ${k.meslek || k.sirket ? html`<dt>İş</dt><dd>${[k.meslek, k.sirket].filter(Boolean).join(" · ")}</dd>` : ""}
+          ${k.alim_gucu_tutar != null ? html`<dt>Alım gücü</dt><dd>${paraYaz(k.alim_gucu_tutar, k.alim_gucu_para)}${k.alim_gucu_para === "TRY" && k.alim_gucu_usd ? html` <small>(${paraYaz(k.alim_gucu_usd, "USD")} · ${tarihYaz(k.alim_gucu_tarih)} kuruyla)</small>` : ""}</dd>` : ""}
+          <dt>Son temas</dt><dd>${k.son_temas_at ? neKadarOnce(k.son_temas_at) : "kayıt yok"}</dd>
+          ${k.notlar ? html`<dt>Notlar</dt><dd>${satirli(k.notlar)}</dd>` : ""}
+        </dl>
+        ${benim ? html`<div class="dugmeler">
+          ${ana ? html`<a class="dugme kucuk" href="tel:+${ana}">Ara</a><a class="dugme kucuk wa" href="https://wa.me/${ana}" target="_blank" rel="noopener">WhatsApp</a>` : ""}
+          <form method="post" action="/kisiler/${k.id}/arandi" class="satir-form">${csrfAlani(req)}<button class="dugme kucuk ikincil">Bugün aradım ✓</button></form>
+          <a class="dugme kucuk ikincil" href="/talepler/yeni?kisi=${k.id}">+ Talep</a>
+          <a class="dugme kucuk ikincil" href="/mulkler/yeni?kisi=${k.id}">+ Mülk</a>
+        </div>` : ""}
+      </div>
+      <div class="kart"><h2>Aradığı (talepler)</h2>${v.talepler.length ? html`<ul class="liste">${v.talepler.map((t) => html`<li><div class="govde"><a class="ad" href="/talepler/${t.id}">${ISLEM_ADI[t.islem]} · ${talepTarifi(t, konum)}</a><small>${TALEP_DURUMU[t.durum]}</small></div></li>`)}</ul>` : html`<p class="soluk">Açık talebi yok.</p>`}</div>
+      <div class="kart"><h2>Mülkleri</h2>${v.mulkler.length ? html`<ul class="liste">${v.mulkler.map((m) => html`<li><div class="govde"><a class="ad" href="/mulkler/${m.id}">${ISLEM_ADI[m.islem]} · ${mulkTarifi(m, konum)}</a><small>${fiyatYaz(m)} · ${MULK_DURUMU[m.durum]}</small></div></li>`)}</ul>` : html`<p class="soluk">Kayıtlı mülkü yok.</p>`}</div>
+      <div class="kart"><h2>Geri arama sözü</h2>
+        ${v.hatirlatmalar.length ? html`<ul class="liste">${v.hatirlatmalar.map((h) => html`<li><div class="govde"><span class="ad">${tarihYaz(h.tarih)}</span><small>${h.notu}</small></div>
+          ${benim ? html`<div class="yan"><form method="post" action="/hatirlatmalar/${h.id}/tamam" class="satir-form">${csrfAlani(req)}<button class="dugme kucuk sade">Arandı ✓</button></form></div>` : ""}</li>`)}</ul>` : ""}
+        ${benim ? html`<form method="post" action="/kisiler/${k.id}/hatirlatma" class="form">${csrfAlani(req)}<div class="izgara iki">
+          ${alan({ ad: "tarih", etiket: "Ne zaman arayacaksınız?", tip: "date", zorunlu: true, ek: `min="${bugun()}"` })}${alan({ ad: "notu", etiket: "Not", ek: 'maxlength="300"' })}</div>
+          <button class="dugme ikincil kucuk">Hatırlat</button></form>` : ""}
+      </div>
+      <div class="kart"><h2>Görüşmeler</h2>
+        ${benim ? html`<details><summary class="dugme ikincil kucuk">+ Görüşme ekle</summary><form method="post" action="/kisiler/${k.id}/gorusme" class="form">${csrfAlani(req)}
+          <div class="izgara uc">
+            ${alan({ ad: "tarih", etiket: "Tarih", tip: "date", deger: bugun(), zorunlu: true, ek: `max="${bugun()}"` })}
+            ${alan({ ad: "tur", etiket: "Tür", tip: "select", deger: "gorusme", liste: Object.entries(GORUSME_TURU).map(([kod, ad]) => ({ kod, ad })) })}
+            ${alan({ ad: "sonuc", etiket: "Sonuç", tip: "select", liste: [{ kod: "", ad: "—" }, ...Object.entries(SONUC_ADI).map(([kod, ad]) => ({ kod, ad }))] })}
+          </div>
+          <p class="soluk">Bir mülk için görüştüyseniz yerini ve türünü de yazın; ileride benzer mülk çıktığında bu kişi öne çıkar.</p>
+          ${konumSecici(konum, {})}
+          <div class="izgara iki">${alan({ ad: "kategori", etiket: "Mülk türü", tip: "select", liste: [{ kod: "", ad: "—" }, ...KATEGORILER] })}${paraAlani({ ad: "tutar", etiket: "Konuşulan tutar" })}</div>
+          ${alan({ ad: "notu", etiket: "Not", tip: "textarea", ek: 'maxlength="2000"' })}
+          <button class="dugme kucuk">Görüşmeyi kaydet</button></form></details>` : ""}
+        ${v.gorusmeler.length ? html`<ul class="liste">${v.gorusmeler.map((g) => html`<li><div class="govde"><span class="ad">${tarihYaz(g.tarih)} · ${GORUSME_TURU[g.tur]}${g.sonuc ? " · " + SONUC_ADI[g.sonuc] : ""}</span>
+          <small>${[konum.yerAdi(g.ilce_id, g.mahalle_id), g.kategori ? kategoriAdi(g.kategori) : "", g.tutar_usd ? paraYaz(g.tutar_usd, "USD") : ""].filter(Boolean).join(" · ")}</small>${g.notu ? html`<div class="neden">${satirli(g.notu)}</div>` : ""}</div></li>`)}</ul>` : html`<p class="soluk">Henüz görüşme kaydı yok.</p>`}
+      </div>
+      ${belgeBolumu(req, v.belgeler, { kisiId: k.id, yazabilir: benim })}
+      ${(k.sahip_id === req.kullanici.id || req.kullanici.rol === "sahip") && !k.silindi_at ? html`<form method="post" action="/kisiler/${k.id}/sil">${csrfAlani(req)}<button class="dugme tehlike kucuk" data-onay="${k.ad} silinsin mi? Talepleri ve mülkleri de silinir.">Kişiyi sil</button> ${ampul("silme")}</form>` : ""}` }));
+  });
+
+  // ---------- Görüşme, hatırlatma, arandı ----------
+  const kendiKisisi = async (q, req) => {
+    const k = await kisiGetir(q, req.params.id);
+    if (k.sahip_id !== req.kullanici.id || k.silindi_at) throw new KullaniciHatasi("Bu işlem yalnızca kaydın sahibine açık.", 403);
+    return k;
+  };
+  app.post("/kisiler/:id/gorusme", async (req, reply) => {
+    const f = req.form, konum = await konumYukle(), yer = konumOku(konum, f);
+    await islem(req.kullanici, async (q) => {
+      const k = await kendiKisisi(q, req);
+      const kur = await kurAl(q), para = secim(f.tutar_para, ["TRY", "USD"], "TRY"), tutar = sayi(f.tutar_tutar);
+      const t = tarih(f.tarih) || bugun();
+      if (t > bugun()) throw new KullaniciHatasi("Görüşme tarihi ileride olamaz.");
+      await q("insert into gorusmeler (kisi_id, sahip_id, tarih, tur, ilce_id, mahalle_id, kategori, tutar_usd, sonuc, notu) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        [k.id, req.kullanici.id, t, secim(f.tur, Object.keys(GORUSME_TURU), "gorusme"), yer.ilce_id, yer.mahalle_id, kategori(f.kategori) ? f.kategori : null, tutar == null ? null : Math.round(usd(tutar, para, kur?.usd_try) ?? 0) || null, secim(f.sonuc, Object.keys(SONUC_ADI)), metin(f.notu, 2000)]);
+      await q("update kisiler set son_temas_at = greatest(coalesce(son_temas_at, 'epoch'), $2::date) where id = $1", [k.id, t]);
+    });
+    return reply.bildir("Görüşme kaydedildi.").redirect("/kisiler/" + req.params.id);
+  });
+  app.post("/kisiler/:id/hatirlatma", async (req, reply) => {
+    const t = tarih(req.form.tarih);
+    if (!t) throw new KullaniciHatasi("Tarih seçin.");
+    await islem(req.kullanici, async (q) => {
+      const k = await kendiKisisi(q, req);
+      await q("insert into hatirlatmalar (kisi_id, sahip_id, tarih, notu) values ($1, $2, $3, $4)", [k.id, req.kullanici.id, t, metin(req.form.notu, 300)]);
+    });
+    return reply.bildir(`${tarihYaz(t)} günü hatırlatılacak.`).redirect("/kisiler/" + req.params.id);
+  });
+  app.post("/kisiler/:id/arandi", async (req, reply) => {
+    await islem(req.kullanici, async (q) => {
+      const k = await kendiKisisi(q, req);
+      await q("insert into gorusmeler (kisi_id, sahip_id, tur) values ($1, $2, 'arama')", [k.id, req.kullanici.id]);
+      await q("update kisiler set son_temas_at = now() where id = $1", [k.id]);
+    });
+    return reply.bildir("Arama kaydedildi.").redirect("/kisiler/" + req.params.id);
+  });
+  app.post("/hatirlatmalar/:id/tamam", async (req, reply) => {
+    await islem(req.kullanici, async (q) => {
+      const h = await q.bir("update hatirlatmalar set tamamlandi_at = now() where id = $1 and sahip_id = $2 and tamamlandi_at is null returning kisi_id", [idGerekli(req.params.id), req.kullanici.id]);
+      if (h) await q("update kisiler set son_temas_at = now() where id = $1", [h.kisi_id]);
+    });
+    return reply.bildir("Tamamlandı.").redirect(req.headers.referer ? new URL(req.headers.referer).pathname : "/");
+  });
+
+  // ---------- Belgeler (kişiye ya da mülke bağlı) ----------
+  app.post("/belgeler", async (req, reply) => {
+    const f = req.form, dosya = Array.isArray(f.dosya) ? f.dosya[0] : f.dosya;
+    if (!dosya?.veri?.length) throw new KullaniciHatasi("Dosya seçin.");
+    const tur = dosyaTuru(dosya.veri);
+    if (!tur) throw new KullaniciHatasi("Yalnızca PDF ve fotoğraf (JPG, PNG, WEBP, HEIC) yüklenebilir.");
+    const kisiId = uuidMi(f.kisi_id) ? f.kisi_id : null, mulkId = uuidMi(f.mulk_id) ? f.mulk_id : null;
+    if (!kisiId && !mulkId) throw new KullaniciHatasi("Belgenin bağlanacağı kayıt bulunamadı.");
+    const yol = await dosyaKaydet("belgeler", dosya.veri, tur.uzanti);
+    try {
+      await islem(req.kullanici, async (q) => {
+        await q("insert into belgeler (sahip_id, kisi_id, mulk_id, tur, dosya_adi, mime, boyut, depo_yolu) values ($1,$2,$3,$4,$5,$6,$7,$8)",
+          [req.kullanici.id, kisiId, mulkId, secim(f.tur, ["tapu", "imar", "plan_notu", "roleve", "diger"], "diger"), metin(dosya.dosyaAdi, 150).replace(/[\\/\r\n"]/g, "_") || "belge." + tur.uzanti, tur.mime, dosya.veri.length, yol]);
+        await kaydet(q, req, "belge_eklendi", kisiId ? "kisi" : "mulk", kisiId || mulkId);
+      });
+    } catch (e) {
+      await dosyaSil(yol).catch(() => {});
+      if (e.code === "42501") throw new KullaniciHatasi("Bu kayda belge ekleyemezsiniz.", 403);
+      throw e;
+    }
+    return reply.bildir("Belge eklendi.").redirect(kisiId ? "/kisiler/" + kisiId : "/mulkler/" + mulkId);
+  });
+  app.get("/belgeler/:id", async (req, reply) => {
+    const b = await islem(req.kullanici, (q) => q.bir("select * from belgeler where id = $1", [idGerekli(req.params.id)]));
+    if (!b) throw new KullaniciHatasi("Belge bulunamadı.", 404);
+    const yol = dosyaYolu(b.depo_yolu);
+    if (!fs.existsSync(yol)) throw new KullaniciHatasi("Belge bulunamadı.", 404);
+    return reply.header("cache-control", "private, no-store").header("content-disposition", `inline; filename*=UTF-8''${encodeURIComponent(b.dosya_adi)}`).type(b.mime).send(fs.createReadStream(yol));
+  });
+  app.post("/belgeler/:id/sil", async (req, reply) => {
+    const b = await islem(req.kullanici, (q) => q.bir("delete from belgeler where id = $1 and sahip_id = $2 returning *", [idGerekli(req.params.id), req.kullanici.id]));
+    if (!b) throw new KullaniciHatasi("Belge bulunamadı.", 404);
+    await dosyaSil(b.depo_yolu).catch(() => {});
+    return reply.bildir("Belge silindi.").redirect(b.kisi_id ? "/kisiler/" + b.kisi_id : "/mulkler/" + b.mulk_id);
+  });
+
+  // ---------- Rehber yükleme ----------
+  app.get("/kisiler/yukle", async (req, reply) => reply.sayfa(sayfa(req, { baslik: "Rehber yükle", geri: { yol: "/kisiler", ad: "Kişiler" }, dar: true, icerik: html`
+    <h1>Rehberimi yükle ${ampul("rehber_yukleme")}</h1>
+    <div class="kart"><p>Telefonunuzdaki rehberi dosya olarak dışa aktarıp buraya yükleyin. Aynı dosyayı sonra yeniden yüklerseniz yalnızca yeni kişiler eklenir, kayıtlılar güncellenir; kimse iki kez yazılmaz.</p>
+      <form method="post" action="/kisiler/yukle" enctype="multipart/form-data" class="form">${csrfAlani(req)}
+        <label class="alan"><span class="etiket">Rehber dosyası (.vcf ya da .csv)</span><input type="file" name="dosya" accept=".vcf,.csv,text/vcard,text/x-vcard,text/csv" required></label>
+        <button class="dugme genis">Dosyayı oku</button></form>
+      <p class="soluk">Yüklemeden önce bir ön izleme göreceksiniz.</p></div>
+    <div class="kart"><button type="button" class="dugme ikincil genis" id="telefondan-sec">Telefon rehberinden seç (Android)</button>
+      <form method="post" action="/kisiler/yukle/telefondan" id="telefondan-formu">${csrfAlani(req)}<input type="hidden" name="kisiler"></form>
+      <p class="soluk">iPhone'da tarayıcı rehbere erişemez; rehberi dosya olarak dışa aktarın (💡 işaretine dokunun).</p></div>` })));
+
+  async function taslakOlustur(req, kayitlar) {
+    if (!kayitlar.length) throw new KullaniciHatasi("Dosyada kişi bulunamadı. Rehberi .vcf ya da .csv olarak dışa aktardığınızdan emin olun.");
+    if (kayitlar.length > 20000) throw new KullaniciHatasi("Dosyada 20.000'den fazla kişi var; lütfen parçalara bölün.");
+    return islem(req.kullanici, async (q) => {
+      const mevcut = new Map((await q("select numara, kisi_id from kisi_telefonlari where sahip_id = $1 and aktif", [req.kullanici.id])).map((t) => [t.numara, t.kisi_id]));
+      const { satirlar, ozet } = yuklemeHazirla(kayitlar, mevcut);
+      if (!satirlar.length) throw new KullaniciHatasi("Dosyadaki kişilerin hiçbirinde geçerli telefon numarası yok.");
+      await q("delete from yukleme_taslaklari where sahip_id = $1", [req.kullanici.id]);
+      return (await q.bir("insert into yukleme_taslaklari (sahip_id, kayitlar, ozet) values ($1, $2, $3) returning id", [req.kullanici.id, JSON.stringify(satirlar), JSON.stringify(ozet)])).id;
+    });
+  }
+  app.post("/kisiler/yukle", async (req, reply) => {
+    const dosya = Array.isArray(req.form.dosya) ? req.form.dosya[0] : req.form.dosya;
+    if (!dosya?.veri?.length) throw new KullaniciHatasi("Dosya seçin.");
+    const id = await taslakOlustur(req, dosyaOku(dosya.veri, dosya.dosyaAdi));
+    return reply.redirect("/kisiler/yukle/" + id);
+  });
+  app.post("/kisiler/yukle/telefondan", async (req, reply) => {
+    let liste;
+    try { liste = JSON.parse(req.form.kisiler || "[]"); } catch { liste = []; }
+    if (!Array.isArray(liste)) liste = [];
+    const id = await taslakOlustur(req, liste.slice(0, 20000).map((c) => ({ ad: String(c?.ad || ""), telefonlar: Array.isArray(c?.telefonlar) ? c.telefonlar.map(String) : [] })));
+    return reply.redirect("/kisiler/yukle/" + id);
+  });
+  app.get("/kisiler/yukle/:id", async (req, reply) => {
+    const t = await islem(req.kullanici, (q) => q.bir("select * from yukleme_taslaklari where id = $1 and sahip_id = $2", [idGerekli(req.params.id), req.kullanici.id]));
+    if (!t) throw new KullaniciHatasi("Ön izleme bulunamadı; dosyayı yeniden yükleyin.", 404);
+    const o = t.ozet, GOSTER = 300;
+    return reply.sayfa(sayfa(req, { baslik: "Ön izleme", geri: { yol: "/kisiler/yukle", ad: "Rehber yükle" }, icerik: html`
+      <h1>Ön izleme</h1>
+      <div class="kart"><p><b>${o.yeni}</b> yeni kişi eklenecek${o.kayitli ? html`, <b>${o.kayitli}</b> kayıtlı kişi güncellenecek` : ""}.</p>
+        <p class="soluk">Dosyada ${o.okunan} satır okundu.${o.numarasiz ? ` ${o.numarasiz} kişide telefon numarası olmadığı için alınmadı.` : ""}${o.tekrar ? ` ${o.tekrar} tekrar birleştirildi.` : ""}</p>
+        <form method="post" action="/kisiler/yukle/${t.id}">${csrfAlani(req)}<div class="dugmeler"><button class="dugme">Hepsini rehberime ekle</button><a class="dugme sade" href="/kisiler/yukle">Vazgeç</a></div></form></div>
+      <div class="kart"><ul class="liste onizleme-liste">${t.kayitlar.slice(0, GOSTER).map((s) => html`<li><div class="govde"><span class="ad">${s.ad}</span><small>${s.telefonlar.map(telefonYaz).join(", ")}${s.sirket ? " · " + s.sirket : ""}</small></div>
+        <div class="yan">${s.kayitli_kisi_id ? html`<span class="etiket-k">kayıtlı</span>` : html`<span class="etiket-k iyi">yeni</span>`}</div></li>`)}</ul>
+        ${t.kayitlar.length > GOSTER ? html`<p class="soluk">… ve ${t.kayitlar.length - GOSTER} kişi daha.</p>` : ""}</div>` }));
+  });
+  app.post("/kisiler/yukle/:id", async (req, reply) => {
+    const ben = req.kullanici.id;
+    const sonuc = await islem(req.kullanici, async (q) => {
+      const t = await q.bir("delete from yukleme_taslaklari where id = $1 and sahip_id = $2 returning *", [idGerekli(req.params.id), ben]);
+      if (!t) throw new KullaniciHatasi("Ön izleme bulunamadı; dosyayı yeniden yükleyin.", 404);
+      // Ön izlemeden bu yana eklenmiş olabilecek numaralar için yeniden bak
+      const mevcut = new Map((await q("select numara, kisi_id from kisi_telefonlari where sahip_id = $1 and aktif", [ben])).map((x) => [x.numara, x.kisi_id]));
+      const yeni = { id: [], ad: [], sirket: [], meslek: [], notlar: [] }, tel = { kisi: [], numara: [], ana: [] };
+      let guncellenen = 0;
+      for (const s of t.kayitlar) {
+        const kayitli = s.telefonlar.map((n) => mevcut.get(n)).find(Boolean);
+        let id = kayitli;
+        if (kayitli) {
+          guncellenen++;
+          await q("update kisiler set sirket = case when sirket = '' then $2 else sirket end, meslek = case when meslek = '' then $3 else meslek end, guncelleme_at = now() where id = $1", [kayitli, s.sirket || "", s.meslek || ""]);
+        } else {
+          id = crypto.randomUUID();
+          yeni.id.push(id); yeni.ad.push(s.ad); yeni.sirket.push(s.sirket || ""); yeni.meslek.push(s.meslek || ""); yeni.notlar.push(s.not || "");
+        }
+        for (const [i, n] of s.telefonlar.entries()) {
+          if (mevcut.has(n)) continue;
+          mevcut.set(n, id);
+          tel.kisi.push(id); tel.numara.push(n); tel.ana.push(!kayitli && i === 0);
+        }
+      }
+      await q("insert into kisiler (id, sahip_id, ad, sirket, meslek, notlar) select a, $1, b, c, d, e from unnest($2::uuid[], $3::text[], $4::text[], $5::text[], $6::text[]) as t(a, b, c, d, e)", [ben, yeni.id, yeni.ad, yeni.sirket, yeni.meslek, yeni.notlar]);
+      await q("insert into kisi_telefonlari (kisi_id, sahip_id, numara, ana) select a, $1, b, c from unnest($2::uuid[], $3::text[], $4::bool[]) as t(a, b, c)", [ben, tel.kisi, tel.numara, tel.ana]);
+      await kaydet(q, req, "rehber_yuklendi", null, null, { yeni: yeni.id.length, guncellenen });
+      return { yeni: yeni.id.length, guncellenen };
+    });
+    return reply.bildir(`${sonuc.yeni} kişi eklendi${sonuc.guncellenen ? `, ${sonuc.guncellenen} kişi güncellendi` : ""}.`).redirect("/kisiler");
+  });
+}

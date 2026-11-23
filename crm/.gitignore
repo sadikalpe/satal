@@ -1,0 +1,6 @@
+node_modules/
+veri/
+.env
+.env.*
+!.env.ornek
+*.log

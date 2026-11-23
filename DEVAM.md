@@ -1,4 +1,20 @@
-# Kaldığımız yer (23.11.2026)
+# Kaldığımız yer (24.11.2026)
+
+## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
+Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
+(Halis Bey'in sunucu bilgisi bekleniyor; sunucuya ve alan adına dokunulmadı).
+- Var olanlar: giriş (davet, e-posta + şifre, Google, yönetici onayı, 1 ay oturum), kişiler ve rehber yükleme
+  (vcf/csv), mülkler, talepler, iki yönlü eşleştirme ve puan, "bugün kimi aramalıyım", "kim alır", WhatsApp mesajı
+  (şablon + isteğe bağlı Claude), günlük mesaj sınırı, belgeler, yönetim (ekip, bölümler, ekip eşleşmeleri, çift
+  kayıt, kur, komşuluk, ayarlar, işlem kaydı, silinenler, dışa aktarma, devir), telefona "ana ekrana ekle".
+- Denetim: `npm test` → 48 test (gizlilik hem ekranlarda hem veritabanı düzeyinde sınanıyor). Tarayıcıda telefon ve
+  bilgisayar görünümüyle gezildi.
+- Kurulumda gerekecekler (Sadık'tan / Halis Bey'den): sunucu SSH erişimi, DNS `crm` kaydı, Google OAuth istemcisi,
+  SMTP bilgileri, isteğe bağlı Anthropic API anahtarı. Adımlar: `crm/KURULUM.md`.
+- Bilinen eksikler / varsayımlar: mahalle komşuluğu her ilçede yok (Yönetim → Komşuluk'tan elle eklenir);
+  TL bütçe kuralı kiralıkta da uygulanıyor; yönetici başkasının kaydını görür ama değiştiremez; TKGM ve Kent
+  Rehberi yalnızca bağlantı olarak var (veri çekilmiyor); ada/parsel teknik analizi ve ekspertiz sonraki modüller.
+- Depo herkese açık: koda şifre, anahtar, gerçek kişi verisi yazılmadı. Kapalı depoya geçiş hâlâ öneri.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
