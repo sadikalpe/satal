@@ -65,7 +65,6 @@ kararını bekleyen 10 madde var; onaylananlar taslağa işlenecek. En acil olan
 ## Deneme sürümü (kapandı, 23.11.2026)
 - Sadık'ın isteğiyle Supabase'deki `satal` projesi 23.11.2026'da silindi; içindeki kişiler, portföyler ve hesaplar
   kalıcı olarak gitti. Kişiler yeni sisteme zaten aktarılmayacaktı.
-- https://sadikalpe.github.io/satal artık yalnızca "deneme sürümü kapandı" notunu gösterir. `web/` içindeki eski kod
+- https://sadikalpe.github.io/satal artık yalnızca "Yakında" notunu gösterir (Sadık'ın kararı). `web/` içindeki eski kod
   başvuru için duruyor, çalışmaz.
-- https://stagayrimenkul.com.tr/crm (Wix) sayfası bu siteyi çerçeve içinde gösteriyordu; kaldırılıp kaldırılmayacağı
-  Sadık'a soruldu.
+- https://stagayrimenkul.com.tr/crm (Wix) sayfası bu siteyi çerçeve içinde gösteriyor; kaldırılmadı, "Yakında" yazıyor.
