@@ -62,7 +62,10 @@ kararını bekleyen 10 madde var; onaylananlar taslağa işlenecek. En acil olan
 - Chrome/ekran izleme bu bulut oturumunda yok. Alternatif: bilgisayardaki Claude uygulamasında `C:\Satal` seçili
   yerel bir Claude Code oturumu açıp bu dosyadan devam etmek. Video gelirse ffmpeg ile kare çıkarılıp incelenebilir.
 
-## Deneme sürümü (eski, çalışıyor; yeni sürüm gelene kadar açık)
-- https://stagayrimenkul.com.tr/crm (Wix'te tam ekran çerçeve) ve https://sadikalpe.github.io/satal
-- Supabase projesi `satal` (ref `sifhvpfzxijohkkuozgg`). Yönetici hesapları: Sadık, Recep Önen.
-- Supabase yönetim kodu iptal edildi; o sisteme değişiklik gerekirse yeni kod istenir.
+## Deneme sürümü (kapandı, 23.11.2026)
+- Sadık'ın isteğiyle Supabase'deki `satal` projesi 23.11.2026'da silindi; içindeki kişiler, portföyler ve hesaplar
+  kalıcı olarak gitti. Kişiler yeni sisteme zaten aktarılmayacaktı.
+- https://sadikalpe.github.io/satal artık yalnızca "deneme sürümü kapandı" notunu gösterir. `web/` içindeki eski kod
+  başvuru için duruyor, çalışmaz.
+- https://stagayrimenkul.com.tr/crm (Wix) sayfası bu siteyi çerçeve içinde gösteriyordu; kaldırılıp kaldırılmayacağı
+  Sadık'a soruldu.
