@@ -23,6 +23,9 @@
 - KVKK: şirketin avukatı var. Halis'e e-posta ayarı mesajı gerekmiyor.
 - Komisyon: %80 sistemi (danışman %80, ofis %20); dış emlakçıyla ortak işte de kendi tarafından %20 ofise;
   danışmanlar arası farklı pay olabilir; komisyon ve paylar SATIŞTAN ÖNCE netleşmeli.
+- Yöneticiler Sadık ve Recep Önen: ikisi de tüm veriyi görür; dışa aktarma YALNIZCA Sadık'ta; Recep'in sildiği de
+  Sadık'ta görünür. Danışman sildiği kişiyi yeniden eklerse eski kayıt GERİ GELMEZ (yeni kayıt), eski kayıt Sadık'ta
+  durur. Bu bilinçli tercih, gerekçe sorulmaz. Satal'da komisyon anlaşması kaydı TUTULMAZ (yalnızca ofis kuralı).
 - Ayrılan danışman rehberinin kopyasını alamaz. Çift kayıt, komisyon paylaşımı ve anlaşmazlıklarda karar Sadık'ta.
 - Alan adı STA'nın, kaydı Halis'te.
 
