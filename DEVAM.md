@@ -50,9 +50,8 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
 ## Toptan inceleme (23.11.2026)
 Rapor: https://claude.ai/artifact/6AVFdBVrGf9RLztQjmcRUs — "Satal — Toptan İnceleme Raporu". 18 bulgu ve Sadık'ın
 kararını bekleyen 10 madde var; onaylananlar taslağa işlenecek. En acil olanlar deneme sürümünde:
-- `settings` tablosundaki `match_status` kaydını bütün danışmanlar okuyabiliyor; içinde başka danışmanların
-  alıcılarının telefon numarası var (anahtar: portföy kimliği + telefon). Düzeltme: bu kaydı yalnızca yönetici okusun.
-- `refresh_team_matches` danışmana ekipteki uygun alıcı sayısını döndürüyor; karar "danışmana hiçbir şey söylenmez".
+- Deneme sürümünde gizlilik kuralını delen iki nokta var; ayrıntısı raporda (bu depo herkese açık olduğu için
+  buraya yazılmadı).
 - Düzeltmek için yeni Supabase yönetim kodu gerekiyor (eskisi iptal). Sadık'ın onayı bekleniyor.
 - Bu depo herkese açık (GitHub Pages ücretsiz hesapta bunu gerektiriyor). Yeni sürüm kapalı depoda yazılmalı;
   bu dosyaya kişisel ya da gizli bilgi yazma.
