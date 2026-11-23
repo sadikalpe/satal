@@ -25,25 +25,37 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
 - Modüler yapı (çizimli): ortak çekirdek + modüller (CRM ilk sürüm; sonra Ekspertiz, Arazi analizi, Piyasa verileri).
   Kullanıcı ileride ekspertiz programı ve arazi analizleri de istiyor. Modül ayrımı en sonda kesinleşecek.
 - Gizlilik: danışman yalnızca kendi verisini görür, yönetici hepsini; ilk girişte gizlilik beyanı onayı.
-- Giriş: Google ile giriş ya da e-posta + şifre (Apple YOK). E-posta doğrulama + yönetici onayı.
-  İki aşamalı doğrulama zorunlu (ilk sürümde Google Authenticator). Danışman profilinde fotoğraf.
+- Giriş (karar 23.11.2026): Google ile giriş ya da e-posta + şifre (Apple YOK). Danışman kendisi üye olur,
+  e-postasına giden linkten şifresini belirler, "Şifremi unuttum" var; şifreyi yönetici vermez. Yönetici onayı
+  şart. Oturum aynı cihazda 1 ay açık. Authenticator ŞİMDİLİK YOK. Danışman profilinde fotoğraf.
 - Kişiler: aynı kişi hem alıcı hem satıcı olabilir; hitap (Ahmet / Bey / Hanım / abi / abla, sen-siz); belge yükleme
   (tapu, imar); aynı numara birden çok danışmanda ise yöneticiye "çift kayıt" uyarısı.
 - Kategori ağacı: Konut (daire 3+1/2+1, kat konumu, bahçeli…; villa müstakil/ikiz/sıra…), Ticari (cadde dükkan,
   depo tavan yüksekliği…), **Arazi** (arsa, tarla, zeytinlik, bağ/bahçe, hazine arazisi). Alanlar isteğe bağlı.
 - Talepler ve mülkler: aralıklar, "olmazsa olmaz / tercih". TL kuralı: alıcı bütçesi girildiği günün TCMB kuruyla
   dolara sabitlenir; mülk TL fiyatı güncel kurla çevrilir.
-- Eşleştirme: ağırlıklar (kategori 25, konum 25, fiyat 25, ayrıntı 20, geçmiş 5); yönetici için danışman bazlı
-  ekip eşleşmeleri (fotoğraflı).
-- WhatsApp mesajları: hitap ve tona göre otomatik metin.
+- Eşleştirme (karar 23.11.2026): fiyat (+%10 pay) ve ana kategori yalnızca eler; puan konum 45, özellikler 40,
+  alt tür 15; geçmiş puan değil ayrı işaret. Belge: https://claude.ai/artifact/JfQVQ4Ae9eKUaGZyYiLKjh
+  Yönetici için danışman bazlı ekip eşleşmeleri (fotoğraflı); danışmana ekip eşleşmesi hakkında hiçbir şey söylenmez.
+- WhatsApp mesajları: hitap ve tona göre otomatik metin. Claude ile yazdırma (ücretli) yalnızca Sadık'ın
+  hesabında açık; Sadık modülleri ve ücretli özellikleri kullanıcı bazında açıp kapatır.
 - Ada/parsel teknik analizi: plan lejantları (açık kaynak; "özel imar uygulama alanı" gibi), plan ölçeği
   (1/1000 – 1/5000), plan notları, dere mutlak koruma, kıyı kenar çizgisi/koruma, baraj havzası, sit alanı ve
   derecesi. Aday kaynak: belediye KEOS / NetCAD e-İmar (örn. https://keos.cesme.bel.tr/keos/ — yurt dışından
   503 veriyor, Türkiye'deki sunucudan denenecek). Lejant kaynağının adı henüz bilinmiyor (araştırılacak).
 - İncelenen uygulamalar: Revy, Endeksa, Tapusor, ParselTapu, Parsel, TKGM — özellik tablosu ve Satal için fikirler.
-- Mevcut deneme sürümünden korunacaklar.
-- Karar bekleyen sorular (danışman kendi mi üye olsun, kiralık da olsun mu, puan ağırlıkları, veri aktarımı,
-  CRM'den sonra hangi modül…).
+- Mevcut deneme sürümünden korunacaklar. Deneme sürümündeki kişiler yeni sisteme AKTARILMAYACAK (karar 23.11.2026).
+- Kategori listesi (Emlakjet tabanlı + hazine arazisi) onaylandı. Kiralık olacak. CRM'den sonraki modül: ekspertiz.
+
+## Toptan inceleme (23.11.2026)
+Rapor: https://claude.ai/artifact/6AVFdBVrGf9RLztQjmcRUs — "Satal — Toptan İnceleme Raporu". 18 bulgu ve Sadık'ın
+kararını bekleyen 10 madde var; onaylananlar taslağa işlenecek. En acil olanlar deneme sürümünde:
+- `settings` tablosundaki `match_status` kaydını bütün danışmanlar okuyabiliyor; içinde başka danışmanların
+  alıcılarının telefon numarası var (anahtar: portföy kimliği + telefon). Düzeltme: bu kaydı yalnızca yönetici okusun.
+- `refresh_team_matches` danışmana ekipteki uygun alıcı sayısını döndürüyor; karar "danışmana hiçbir şey söylenmez".
+- Düzeltmek için yeni Supabase yönetim kodu gerekiyor (eskisi iptal). Sadık'ın onayı bekleniyor.
+- Bu depo herkese açık (GitHub Pages ücretsiz hesapta bunu gerektiriyor). Yeni sürüm kapalı depoda yazılmalı;
+  bu dosyaya kişisel ya da gizli bilgi yazma.
 
 ## Bilgisayara bağlantı
 - Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal", "STA Claude", "8629 9" klasörleri var
