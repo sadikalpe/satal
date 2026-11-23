@@ -1,5 +1,12 @@
 # Kaldığımız yer (21.11.2026)
 
+## Kalıcı kurallar (kullanıcı söyledi)
+- Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
+
+## Halis Bey (Pixelibol) ile durum
+- Halis: sunucu Türkiye'de olur, DNS'te `crm` kaydını açar; önce teknolojiyi sordu (PHP mi Node.js mi).
+- Yanıt taslağı Gmail'de hazır (Node.js 22 + PostgreSQL 16/PostGIS + Nginx + Docker; Ubuntu 24.04 VDS, 2 vCPU/4 GB/60–80 GB). Kullanıcı onayıyla gönderilecek.
+
 ## Karar: Satal sıfırdan yeniden kurulacak
 Proje taslağı (canlı belge, her değişiklik orada):
 https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı"
