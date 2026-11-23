@@ -102,7 +102,7 @@ export function eslesmeSatiri(e, { yon, konum, ekDugme = "", danisman = null, se
         ${a.para_bilinmiyor ? html`<span class="etiket-k uyari">parası bilinmiyor</span>` : ""}
         ${isaretler.map((i) => html`<span class="etiket-k bilgi">${i}</span>`)}
         ${eslesmeNotlari(a)}
-        ${e.butce_tarih ? html`<span class="etiket-k">bütçe ${ayYilYaz(e.butce_tarih)}'de girildi</span>` : ""}
+        ${e.butce_tarih ? html`<span class="etiket-k">bütçe tarihi: ${ayYilYaz(e.butce_tarih)}</span>` : ""}
         ${e.son_mesaj_at ? html`<span class="etiket-k sari">bu mülk ${neKadarOnce(e.son_mesaj_at)} gönderildi</span>` : ""}
         ${e.mesaj_istemiyor ? html`<span class="etiket-k uyari">mesaj istemiyor</span>` : ""}
         ${danisman ? danismanEtiketi(danisman) : ""}
