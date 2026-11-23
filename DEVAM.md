@@ -25,8 +25,10 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
 - Modüler yapı (çizimli): ortak çekirdek + modüller (CRM ilk sürüm; sonra Ekspertiz, Arazi analizi, Piyasa verileri).
   Kullanıcı ileride ekspertiz programı ve arazi analizleri de istiyor. Modül ayrımı en sonda kesinleşecek.
 - Gizlilik: danışman yalnızca kendi verisini görür, yönetici hepsini; ilk girişte gizlilik beyanı onayı.
-- Giriş: Google ile giriş ya da e-posta + şifre (Apple YOK). E-posta doğrulama + yönetici onayı.
-  İki aşamalı doğrulama zorunlu (ilk sürümde Google Authenticator). Danışman profilinde fotoğraf.
+- Giriş (23.11.2026 kesin): Google ile giriş (özellikle Android) ya da e-posta + şifre (Apple YOK). Danışman
+  kendisi üye olur: e-postasını yazar, e-postaya giden linkten şifresini kendisi belirler; altta "Şifremi unuttum".
+  Oturum aynı cihazda 1 ay açık kalır. Ardından yönetici onayı. İki aşamalı doğrulama (Authenticator) şimdilik YOK.
+  Danışman profilinde fotoğraf.
 - Kişiler: aynı kişi hem alıcı hem satıcı olabilir; hitap (Ahmet / Bey / Hanım / abi / abla, sen-siz); belge yükleme
   (tapu, imar); aynı numara birden çok danışmanda ise yöneticiye "çift kayıt" uyarısı.
 - Kategori ağacı: Konut (daire 3+1/2+1, kat konumu, bahçeli…; villa müstakil/ikiz/sıra…), Ticari (cadde dükkan,
@@ -39,15 +41,15 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
 - Ada/parsel teknik analizi: plan lejantları (açık kaynak; "özel imar uygulama alanı" gibi), plan ölçeği
   (1/1000 – 1/5000), plan notları, dere mutlak koruma, kıyı kenar çizgisi/koruma, baraj havzası, sit alanı ve
   derecesi. Aday kaynak: belediye KEOS / NetCAD e-İmar (örn. https://keos.cesme.bel.tr/keos/ — yurt dışından
-  503 veriyor, Türkiye'deki sunucudan denenecek). Lejant kaynağının adı henüz bilinmiyor (araştırılacak).
+  503 veriyor, Türkiye'deki sunucudan denenecek). Lejant kaynağı: Çevre, Şehircilik Bakanlığı Mekânsal Planlar Yapım Yönetmeliği EK-1a Ortak Gösterimler.
 - İncelenen uygulamalar: Revy, Endeksa, Tapusor, ParselTapu, Parsel, TKGM — özellik tablosu ve Satal için fikirler.
 - Mevcut deneme sürümünden korunacaklar.
 - Karar bekleyen sorular (danışman kendi mi üye olsun, kiralık da olsun mu, puan ağırlıkları, veri aktarımı,
   CRM'den sonra hangi modül…).
 
 ## Bilgisayara bağlantı
-- Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal", "STA Claude", "8629 9" klasörleri var
-  ama hiçbiri bulut oturumuna açılmıyor (Claude uygulaması güncellemesi gerekebilir ya da özellik hesapta açık değil).
+- Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal" (C:\Users\sadik\Documents\satal,
+  Google Drive dışında), "STA Claude", "8629 9" klasörleri var. Bilgisayar açıkken bağlanılabilir.
 - Chrome/ekran izleme bu bulut oturumunda yok. Alternatif: bilgisayardaki Claude uygulamasında `C:\Satal` seçili
   yerel bir Claude Code oturumu açıp bu dosyadan devam etmek. Video gelirse ffmpeg ile kare çıkarılıp incelenebilir.
 
