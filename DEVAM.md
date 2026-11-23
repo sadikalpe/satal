@@ -12,13 +12,14 @@
 ## İnceleme sonrası kararlar (23.11.2026, Sadık)
 - Danışmanlar birbirinin verisini görmez, yönetici (Sadık) hepsini görür. Sunucu sağlayıcının teknik erişimi ve yedek
   yeri onun için sorun değil; sunucuda yer var.
-- Deneme sürümü önemsiz; verisi SİLİNMEZ, kişiler aktarılmaz.
+- Deneme sürümü önemsiz; yayından kaldırılır ve verisi SİLİNİR (21:22'de kesinleşti), kişiler aktarılmaz.
 - Yöneticiler yalnızca Google ile girer. Üyelik yalnızca yöneticinin e-postayla gönderdiği davet bağlantısıyla.
 - İlk sürüm DAR değil, tam kapsam; ilk dönem birkaç kişi, altyapı büyümeye göre.
 - Yatırımcı/al-satçı tipi işaretlenebilir; puanı ekspertiz modülü gelince açılır.
 - "Mesaj istemiyor" işareti + sırayla göndermede günlük sınır (başlangıç 20, ayarlanabilir).
 - Açılış ekranı: "bugün kimi aramalıyım" listesi + güncel kur vb. (ayrıntı sonra).
-- Kişi silme: danışman silince ondan kalkar, yönetici onaylayınca gerçekten silinir; danışman onay adımını bilmez.
+- Kişi silme: danışman silince ondan kalkar, kayıt notları ve geçmişiyle yöneticide KALIR ("veri veridir");
+  danışman bunu bilmez. Toplu dışa aktarma danışmanlarda kapalı, yalnızca Sadık alabilir.
 - KVKK: şirketin avukatı var. Halis'e e-posta ayarı mesajı gerekmiyor.
 - Komisyon: %80 sistemi (danışman %80, ofis %20); dış emlakçıyla ortak işte de kendi tarafından %20 ofise;
   danışmanlar arası farklı pay olabilir; komisyon ve paylar SATIŞTAN ÖNCE netleşmeli.
