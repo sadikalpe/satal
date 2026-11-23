@@ -44,8 +44,10 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
   503 veriyor, Türkiye'deki sunucudan denenecek). Lejant kaynağı: Çevre, Şehircilik Bakanlığı Mekânsal Planlar Yapım Yönetmeliği EK-1a Ortak Gösterimler.
 - İncelenen uygulamalar: Revy, Endeksa, Tapusor, ParselTapu, Parsel, TKGM — özellik tablosu ve Satal için fikirler.
 - Mevcut deneme sürümünden korunacaklar.
-- Karar bekleyen sorular (danışman kendi mi üye olsun, kiralık da olsun mu, puan ağırlıkları, veri aktarımı,
-  CRM'den sonra hangi modül…).
+- 23.11.2026 kararları: kategori listesi onaylandı; deneme sürümündeki kişiler AKTARILMAZ; Claude'un yazdığı ücretli
+  WhatsApp mesajı ilk sürümde yalnızca Sadık'ın hesabında açık, diğerlerinde görünmez; Sadık modülleri ve bu tür
+  özellikleri istediği kullanıcıya açıp kapatabilir; CRM'den sonraki modül EKSPERTİZ.
+- Hâlâ karar bekleyen: puan ağırlıkları (kategori 25, konum 25, fiyat 25, ayrıntı 20, geçmiş 5).
 
 ## Bilgisayara bağlantı
 - Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal" (C:\Users\sadik\Documents\satal,
