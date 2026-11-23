@@ -5,7 +5,7 @@
 
 ## Halis Bey (Pixelibol) ile durum
 - Halis: sunucu Türkiye'de olur, DNS'te `crm` kaydını açar; önce teknolojiyi sordu (PHP mi Node.js mi).
-- Yanıt taslağı Gmail'de hazır (Node.js 22 + PostgreSQL 16/PostGIS + Nginx + Docker; Ubuntu 24.04 VDS, 2 vCPU/4 GB/60–80 GB). Kullanıcı onayıyla gönderilecek.
+- 23.11.2026'da Halis'e yanıt gönderildi (Node.js 22 + PostgreSQL 16/PostGIS + Nginx + Docker; Ubuntu 24.04 VDS, 2 vCPU/4 GB/60–80 GB). Cevabı bekleniyor: VDS + SSH erişimi.
 
 ## Karar: Satal sıfırdan yeniden kurulacak
 Proje taslağı (canlı belge, her değişiklik orada):
