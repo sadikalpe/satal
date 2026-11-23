@@ -35,8 +35,11 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
   depo tavan yüksekliği…), **Arazi** (arsa, tarla, zeytinlik, bağ/bahçe, hazine arazisi). Alanlar isteğe bağlı.
 - Talepler ve mülkler: aralıklar, "olmazsa olmaz / tercih". TL kuralı: alıcı bütçesi girildiği günün TCMB kuruyla
   dolara sabitlenir; mülk TL fiyatı güncel kurla çevrilir.
-- Eşleştirme: ağırlıklar (kategori 25, konum 25, fiyat 25, ayrıntı 20, geçmiş 5); yönetici için danışman bazlı
-  ekip eşleşmeleri (fotoğraflı).
+- Eşleştirme (23.11.2026 kesin): önce ele, sonra puanla. Ön şartlar: ana kategori, bütçe (%10 pay, payda en fazla B),
+  alt tür grubu (yakın tür en fazla B), konum dış sınırı (komşu ilçeden uzak çıkmaz), olmazsa olmazlar (arsada imar,
+  iş yerinde kullanım türü hazır gelir). Puan: konum 45, özellikler 40 (kategoriye göre), alt tür 15. Geçmiş ve
+  potansiyel puana girmez, ayrı işaret. Ayrıntı: https://claude.ai/artifact/JfQVQ4Ae9eKUaGZyYiLKjh
+  Yönetici için danışman bazlı ekip eşleşmeleri (fotoğraflı).
 - WhatsApp mesajları: hitap ve tona göre otomatik metin.
 - Ada/parsel teknik analizi: plan lejantları (açık kaynak; "özel imar uygulama alanı" gibi), plan ölçeği
   (1/1000 – 1/5000), plan notları, dere mutlak koruma, kıyı kenar çizgisi/koruma, baraj havzası, sit alanı ve
@@ -47,7 +50,7 @@ https://claude.ai/artifact/RbtgmPsBQWGgwBA5RWFG3g — "Satal — Proje Taslağı
 - 23.11.2026 kararları: kategori listesi onaylandı; deneme sürümündeki kişiler AKTARILMAZ; Claude'un yazdığı ücretli
   WhatsApp mesajı ilk sürümde yalnızca Sadık'ın hesabında açık, diğerlerinde görünmez; Sadık modülleri ve bu tür
   özellikleri istediği kullanıcıya açıp kapatabilir; CRM'den sonraki modül EKSPERTİZ.
-- Hâlâ karar bekleyen: puan ağırlıkları (kategori 25, konum 25, fiyat 25, ayrıntı 20, geçmiş 5).
+- Taslaktaki karar bekleyen soruların hepsi 23.11.2026'da cevaplandı.
 
 ## Bilgisayara bağlantı
 - Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal" (C:\Users\sadik\Documents\satal,
