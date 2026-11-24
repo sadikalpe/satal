@@ -23,7 +23,9 @@ Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde ça
 - Kural (Sadık): bir talep 6 aydan uzun geçerli olmaz. Rehber notlarında tarih yok; talepler "Hayır" geldi,
   Sadık hâlâ arayanları "Evet" yapacak. Eski ilgilenmeler kişinin notunda kalır.
 - Kurulum günü yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma").
-- Bekleyen: WhatsApp sohbet dışa aktarımları (Sadık Drive'a koyuyor) aynı kitaba işlenecek.
+- WhatsApp: Drive'daki 25 sohbet özetlendi, kitabın "WhatsApp" sayfasında (ekleme betiği `wa_ekle.py`, yine
+  proje dosyalarında). Rehberdeki kişilerin notuna eklendi; 9 yeni kişi (yeni numaralar ve paylaşılan kartvizitler).
+  Ofis içi sohbet (Recep Önen) aktarılmadı. 13 sohbetin numarası dışa aktarımda yok; Sadık numaraları ekleyebilir.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
