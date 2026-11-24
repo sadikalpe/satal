@@ -17,6 +17,23 @@ kurulacak; adresi `crm.stagayrimenkul.com.tr`, sunucu Halis Bey'in (Pixelibol) T
 - **Bu depodaki kod** (`web/`, `supabase/`, `tests/`) eski deneme sürümüdür; hâlâ yayında
   (https://sadikalpe.github.io/satal ve https://stagayrimenkul.com.tr/crm). Yeni sürüm ayrıca kurulacak.
 
+## Birden fazla bilgisayar (ev, iş…)
+Sadık bu projede birden çok bilgisayarda çalışıyor ve bir bilgisayarda başladığı işe diğerinde kaldığı yerden
+devam etmek istiyor. Bilgisayarlar arasındaki tek köprü **GitHub**'dır; Claude'un sohbet geçmişi ve hafızası
+bilgisayarlar arasında taşınmaz, bu yüzden kalıcı olan her şey bu depoya yazılır.
+- **Oturum başında:** `.claude/hooks/oturum-basi.ps1` kendiliğinden çalışır, GitHub'daki son hali indirir ve durumu
+  bildirir. Bildirimde başka bir dalda yarım kalmış iş ya da çakışma varsa kullanıcıya kısaca söyle; birleştirme
+  ya da üzerine yazma işini sormadan yapma.
+- **Bir iş bitince ya da kullanıcı "kaydet", "bitirdim", "eve gidiyorum", "kalkıyorum" gibi bir şey deyince:**
+  DEVAM.md'deki "Kaldığımız yer"i güncelle (ne yapıldı, ne yarım kaldı, sıradaki adım, hangi daldayız), değişiklikleri
+  kaydet (commit) ve GitHub'a gönder (push). Ardından kullanıcıya "Kaydedildi, diğer bilgisayardan devam edebilirsin"
+  de. Göndermeden önce testler gerekiyorsa çalıştır.
+- **Hafıza:** Kullanıcının "hatırla" dediği ve projeyle ilgili olan her şeyi Claude'un yerel hafızasına değil
+  DEVAM.md'ye ya da bu dosyaya yaz; yoksa diğer bilgisayardaki Claude bilmez.
+- Gizli bilgiler (şifre, anahtar, `.env`) GitHub'a gönderilmez; depo herkese açık.
+- **Yeni bir bilgisayar:** `kurulum/yeni-bilgisayar.ps1` her şeyi kurar (Git, Node.js, GitHub girişi, PostgreSQL,
+  proje). Adımlar `kurulum/README.md`'de.
+
 ## Kalıcı kurallar (kullanıcı koydu)
 - Taslak onaylanmadan yeni sürümün kurulumuna başlama. Taslak aşamasında yalnızca kullanıcının söylediklerini toparla.
 - Modül ayrımına (hangi parça hangi modülde) en sonda karar verilecek.
