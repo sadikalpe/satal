@@ -72,6 +72,12 @@ kararını bekleyen 10 madde var; onaylananlar taslağa işlenecek. En acil olan
 - Bu depo herkese açık (GitHub Pages ücretsiz hesapta bunu gerektiriyor). Yeni sürüm kapalı depoda yazılmalı;
   bu dosyaya kişisel ya da gizli bilgi yazma.
 
+## Birden fazla bilgisayar (24.11.2026)
+- Sadık ev ve işte farklı bilgisayarlarla çalışıyor; köprü GitHub. Oturum başında `.claude/hooks/oturum-basi.ps1`
+  GitHub'dan son hali indirir; "kaydet" deyince bu dosya güncellenip GitHub'a gönderilir (kurallar CLAUDE.md'de).
+- Yeni bilgisayar: `kurulum/README.md` (tek komut). İkinci laptop 24.11.2026'da kuruldu (proje `C:\Users\sadik\code\satal`,
+  PostgreSQL 16 hizmet olarak çalışıyor, 48 test geçti). Sıfır bilgisayarda betik henüz baştan sona denenmedi.
+
 ## Bilgisayara bağlantı
 - Kullanıcının bilgisayarı DESKTOP-K2A4AJV; Remote Control listesinde "satal", "STA Claude", "8629 9" klasörleri var
   ama hiçbiri bulut oturumuna açılmıyor (Claude uygulaması güncellemesi gerekebilir ya da özellik hesapta açık değil).
