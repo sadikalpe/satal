@@ -15,6 +15,7 @@ npm run migrate          # yerel PostgreSQL'de "satal" veritabanını kurar
 npm run ornek-veri       # uydurma örnek kayıtlar (yalnızca boş veritabanına, yayında çalışmaz)
 DENEME_GIRISI=1 npm run dev
 npm test                 # "satal_test" veritabanını sıfırlayıp bütün testleri çalıştırır
+node scripts/aktar.js dosya.xlsx --danisman <e-posta> [--yaz]   # aktarım çalışma kitabını yükler (KURULUM.md)
 ```
 
 ## Klasörler

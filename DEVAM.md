@@ -16,6 +16,15 @@ Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde ça
   Rehberi yalnızca bağlantı olarak var (veri çekilmiyor); ada/parsel teknik analizi ve ekspertiz sonraki modüller.
 - Depo herkese açık: koda şifre, anahtar, gerçek kişi verisi yazılmadı. Kapalı depoya geçiş hâlâ öneri.
 
+## Eldeki verilerin aktarımı (24.11.2026)
+- Sadık'ın telefon rehberi (4.172 satır) ve Google Keep notları temizlenip "aktarım çalışma kitabı"na çevrildi.
+  Dosya gerçek kişi verisi içerdiği için depoda DEĞİL; proje dosyalarında: `satal-aktarim/satal-aktarim.xlsx`
+  (temizleme betiği de orada: `temizle.py`). Kişilerin hepsi Sadık'ın adına girecek.
+- Kural (Sadık): bir talep 6 aydan uzun geçerli olmaz. Rehber notlarında tarih yok; talepler "Hayır" geldi,
+  Sadık hâlâ arayanları "Evet" yapacak. Eski ilgilenmeler kişinin notunda kalır.
+- Kurulum günü yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma").
+- Bekleyen: WhatsApp sohbet dışa aktarımları (Sadık Drive'a koyuyor) aynı kitaba işlenecek.
+
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
 - Taslak onaylanmadan kuruluma başlanmaz. Şu an taslak aşamasındayız: kullanıcının aklına gelenler toparlanır,

@@ -29,6 +29,18 @@ Sertifika yenileme: `certbot renew --webroot -w /var/www/certbot --deploy-hook "
 `.env` içindeki `SAHIP_EPOSTA` ve `YONETICI_EPOSTALARI` adresleriyle "Google ile giriş" yapan kişiler doğrudan
 yetkilendirilir. Danışmanlar Yönetim → Ekip ekranından davet edilir.
 
+## Eldeki verileri aktarma (bir kez)
+Sadık'ın rehberi ve notları "aktarım çalışma kitabı" adlı Excel dosyasında hazır (proje dosyalarında; gerçek kişi
+verisi olduğu için depoda değil). Sadık bir kez giriş yaptıktan sonra:
+```sh
+docker compose cp satal-aktarim.xlsx uygulama:/tmp/aktarim.xlsx
+docker compose exec uygulama node scripts/aktar.js /tmp/aktarim.xlsx --danisman <Sadık'ın e-postası>        # önce dener
+docker compose exec uygulama node scripts/aktar.js /tmp/aktarim.xlsx --danisman <Sadık'ın e-postası> --yaz  # sonra yazar
+docker compose exec uygulama rm /tmp/aktarim.xlsx
+```
+Deneme hiçbir şey yazmaz; kaç kişi, talep ve mülk gireceğini ve alınmayan satırları nedenleriyle gösterir. Dosya iki
+kez yüklenirse aynı kişi, talep ve mülk yeniden eklenmez. Sayfa ve sütun düzeni: `src/lib/aktarim-hazirla.js`.
+
 ## Yedek
 Her gece veritabanı ve belgeler yedeklenir, 30 gün saklanır:
 ```sh
