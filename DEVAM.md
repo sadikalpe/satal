@@ -1,4 +1,8 @@
-# Kaldığımız yer (24.11.2026)
+# Kaldığımız yer (25.11.2026)
+
+**Şu an:** Satal'a hafıza eklemeleri ve yeni aktarım PR 6'da (dal `claude/project-thread-zypzh0`), birleştirilmeyi
+bekliyor. Sıradaki adımlar: (1) Sadık'ın aktarım kitabındaki sorulara yanıtları kitaba işlenir, (2) PR 6 birleştirilir,
+(3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
 
 ## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
 Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
@@ -7,7 +11,7 @@ Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde ça
   (vcf/csv), mülkler, talepler, iki yönlü eşleştirme ve puan, "bugün kimi aramalıyım", "kim alır", WhatsApp mesajı
   (şablon + isteğe bağlı Claude), günlük mesaj sınırı, belgeler, yönetim (ekip, bölümler, ekip eşleşmeleri, çift
   kayıt, kur, komşuluk, ayarlar, işlem kaydı, silinenler, dışa aktarma, devir), telefona "ana ekrana ekle".
-- Denetim: `npm test` → 48 test (gizlilik hem ekranlarda hem veritabanı düzeyinde sınanıyor). Tarayıcıda telefon ve
+- Denetim: `npm test` → 61 test (gizlilik hem ekranlarda hem veritabanı düzeyinde sınanıyor). Tarayıcıda telefon ve
   bilgisayar görünümüyle gezildi.
 - Kurulumda gerekecekler (Sadık'tan / Halis Bey'den): sunucu SSH erişimi, DNS `crm` kaydı, Google OAuth istemcisi,
   SMTP bilgileri, isteğe bağlı Anthropic API anahtarı. Adımlar: `crm/KURULUM.md`.
@@ -16,16 +20,51 @@ Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde ça
   Rehberi yalnızca bağlantı olarak var (veri çekilmiyor); ada/parsel teknik analizi ve ekspertiz sonraki modüller.
 - Depo herkese açık: koda şifre, anahtar, gerçek kişi verisi yazılmadı. Kapalı depoya geçiş hâlâ öneri.
 
-## Eldeki verilerin aktarımı (24.11.2026)
-- Sadık'ın telefon rehberi (4.172 satır) ve Google Keep notları temizlenip "aktarım çalışma kitabı"na çevrildi.
-  Dosya gerçek kişi verisi içerdiği için depoda DEĞİL; proje dosyalarında: `satal-aktarim/satal-aktarim.xlsx`
-  (temizleme betiği de orada: `temizle.py`). Kişilerin hepsi Sadık'ın adına girecek.
-- Kural (Sadık): bir talep 6 aydan uzun geçerli olmaz. Rehber notlarında tarih yok; talepler "Hayır" geldi,
-  Sadık hâlâ arayanları "Evet" yapacak. Eski ilgilenmeler kişinin notunda kalır.
-- Kurulum günü yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma").
-- WhatsApp: Drive'daki 25 sohbet özetlendi, kitabın "WhatsApp" sayfasında (ekleme betiği `wa_ekle.py`, yine
-  proje dosyalarında). Rehberdeki kişilerin notuna eklendi; 9 yeni kişi (yeni numaralar ve paylaşılan kartvizitler).
-  Ofis içi sohbet (Recep Önen) aktarılmadı. 13 sohbetin numarası dışa aktarımda yok; Sadık numaraları ekleyebilir.
+## Satal'a hafıza eklemeleri (25.11.2026) — PR 6, dal `claude/project-thread-zypzh0`
+Sadık'ın isteği: "Bizim işimiz database'i eşleştirmek. Referansları hatırlamak." Ofiste 20'den fazla danışman var,
+yüzlerce yer geliyor; kendisi sıfırdan ayrı bir uygulama istemiyor. **Karar: ayrı uygulama yok.** Kayıtların yeri
+Satal; Satal canlıya çıkana kadar her şey aktarım kitabında (Excel) tutulur, yeni notlar oraya işlenir.
+Satal'a eklenenler (şema: `crm/migrations/002_hafiza.sql`):
+- **Kim tanıştırdı:** kişide tanıştıran kişi (rehberden seçilir) + not. Tanıştıranın kartında tanıştırdığı herkes ve
+  getirdiği bütün yerler bir arada görünür ("Ondan gelenler").
+- **Kimden geldi:** mülkte yeri getiren kişi + not. Sahibi belli olmayan yer "ofis mülkü" olarak girer.
+- **Üçüncü kişi tipi "olursa alır"** (aramıyor, iyi yer çıkarsa alır). Al-satçı ve yatırımcı gibi, çalıştığı bölge ve
+  türe uyan yer gelince "Talebi yok ama alabilir" listesine girer.
+- **Her şeyde arama** (üstteki kutu, `/ara`): kişi, mülk, talep, görüşme notu ve hatırlatmalarda aynı anda arar
+  (ad, yer, ada / parsel, telefon, notta geçen söz). Danışman yalnızca kendi kayıtlarında arar; yönetici "Bütün ekip"
+  seçebilir; mülk notunu yalnızca sahibi arar.
+- **Geçmiş ilgiler:** görüşmenin tarihi boş (bilinmiyor) ya da yalnızca yıl olabilir; satılık / kiralık ayrımı var.
+  "Talebi yok ama alabilir"de geçmiş ilgi yalnızca aynı tür ve aynı işlem için sayılır (kiralık daire soran, satılık
+  depo için aday gösterilmez).
+- Gizlilik: iki bağlantı için ayrıca veritabanı kuralı yazılmadı (nedeni 002_hafiza.sql'de). Uygulama, bağlanan kişinin
+  danışmanın kendi rehberinde olduğuna bakar; gösterimde okuma kuralı korur (başka danışmanın ya da silinmiş kişinin
+  adı hiçbir ekrana gelmez). Bunların sınamaları `test/butun.test.js`'te.
+- Bilinenler: kalıcı silmede (KVKK) kişinin adı başka kayıtların serbest notlarında geçiyorsa oradan kendiliğinden
+  silinmez; sistem sahibi arama kutusuyla bulup notu düzeltir. Arama düz metin taraması yapar; kayıt çok büyürse
+  dizin (pg_trgm) eklenir.
+
+## Eldeki verilerin aktarımı (24–25.11.2026)
+- Kaynaklar: Sadık'ın telefon rehberi (4.172 satır), Google Keep notları, WhatsApp (24 sohbet + ofis grubu). Hepsi tek
+  bir "aktarım çalışma kitabı"nda; gerçek kişi verisi içerdiği için depoda DEĞİL, proje dosyalarında:
+  `satal-aktarim/satal-aktarim.xlsx` (asıl kopya). Betikler de orada (`temizle.py`, `wa_ekle.py`, `hafiza.py`,
+  `hafiza_veri.py`); ilk düzenin yedeği `kaynak/` klasöründe. Kişilerin hepsi Sadık'ın adına girecek.
+- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama + Sadık'a 16 soru), Kişiler (4.047; tipi, çalıştığı bölge
+  ve tür, kim tanıştırdı), Geçmiş ilgiler (254), Talepler (5), Aranacaklar (37), Mülkler (312: 71 satışta, 231 arşiv,
+  10 satıldı; kimden geldi, not tarihi), Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
+- Kurallar (Sadık): bir talep 6 aydan uzun geçerli olmaz (sınır 24.05.2026). Eski arayışlar talep değil "geçmiş ilgi",
+  eski yerler "Arşiv" olur (Satal'da pasif: eşleştirmeye girmez, aramada ve getirenin kartında görünür).
+- Varsayımlar: alım gücü sütunu boş (notlarda güncel rakam yok, tahmin yazılmadı; Satal'da bu kişiler "parası
+  bilinmiyor" diye görünür). Arşivdeki yerlerin fiyatı yazılmadı. Şifre, banka, kimlik numarası gibi kişisel bilgiler
+  ve komisyon konuşmaları kitaba hiç alınmadı.
+- Ofis grubu sayfası Satal'a YÜKLENMEZ: oradaki yerler ve arayışlar danışmanların kendi müşterileri, çoğunun telefonu
+  yok. Sadık'ın başvurusu için kitapta durur; Satal açılınca her danışman kendi kaydını kendi hesabına girer. Sadık'ın
+  ve Recep Bey'in grupta paylaştığı önemli yerler Mülkler sayfasına da işlendi. Ofis içi özel sohbet aktarılmadı.
+- Yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma"). 25.11.2026'da gerçek kitapla
+  yerel deneme veritabanında denendi (sonra silindi): 4.040 kişi, 303 mülk (70'i aktif), 226 geçmiş ilgi, 34
+  hatırlatma, 5 talep; 101 "kim tanıştırdı" ve 103 "kimden geldi" bağlantısı; 47 satır bilerek alınmadı; ikinci
+  yüklemede hiçbir şey çift yazılmadı.
+- Bekleyen: Okuyun sayfasındaki 16 soru (notlarda yalnızca adıyla geçen kişiler kim, bazı yerler hangi ilçede).
+  24 WhatsApp sohbetinin 13'ünde telefon numarası yok. Yanıt geldikçe kitaba işlenir.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.

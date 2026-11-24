@@ -36,6 +36,7 @@ ${k ? html`
     ${MENU.map((m) => html`<a href="${m.yol}"${nitelik('class="etkin"', etkin(m))}>${m.ad}</a>`)}
     ${yoneticiMi(k) ? html`<a href="/yonetim"${nitelik('class="etkin"', yol.startsWith("/yonetim"))}>Yönetim</a>` : ""}
   </nav>
+  ${yol === "/ara" ? "" : html`<form class="ust-ara" action="/ara" method="get" role="search"><input type="search" name="q" placeholder="Her şeyde ara" aria-label="Her şeyde ara"></form>`}
   <a class="profil-dugme" href="/profil" title="Profil">${k.foto_yol ? html`<img src="/foto/${k.id}" alt="">` : html`<span class="avatar">${(k.ad || "?").slice(0, 1)}</span>`}</a>
 </header>` : ""}
 <main class="${dar ? "dar" : ""}">

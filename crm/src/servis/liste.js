@@ -3,6 +3,7 @@
 import { sirala, talepsizAday } from "../alan/eslestirme.js";
 import { konumYukle, ayarlarAl, kurAl } from "./ortak.js";
 import { mulkTarifi, talepTarifi, fiyatYaz } from "../gorunum/parcalar.js";
+import { PROJE_KARSILIGI } from "../alan/kategoriler.js";
 
 const isaretler = (r) => [r.potansiyel === "A" ? "A potansiyel" : null, r.bolgede_gorusuldu ? "bu ilçede daha önce görüşüldü" : null].filter(Boolean);
 
@@ -38,18 +39,24 @@ export async function talebinMulkleri(q, talep, kapsam = "kendi") {
 }
 
 // "Talebi yok ama alabilir": mülk sahibinin rehberinde, bu mülkle eşleşen açık talebi olmayan kişiler.
+// Geçmiş ilgi ("bu ilçede daha önce görüşüldü") yalnızca aynı ana kategoride ve aynı işlemde (satılık / kiralık) sayılır:
+// Menderes'te kiralık daire sormuş biri, Menderes'teki satılık depo için aday gösterilmez. Kategorisi ya da işlemi
+// yazılmamış eski görüşmeler her mülk için sayılır.
 export async function talepsizAdaylar(q, mulk, sahipId, haricKisiler = []) {
   const [ayarlar, kur] = [await ayarlarAl(), await kurAl(q)];
+  const kategoriler = mulk.kategori === "proje" ? ["proje", ...(PROJE_KARSILIGI[mulk.alt_tur] || [])] : [mulk.kategori];
   const kisiler = await q(
     `select k.id, k.ad, k.potansiyel, k.alim_gucu_usd, k.alim_gucu_tutar, k.alim_gucu_para, k.yatirimci_tipi, k.calisma_bolgeleri, k.calisma_kategorileri, k.mesaj_istemiyor,
-            coalesce((select array_agg(distinct g.ilce_id) from gorusmeler g where g.kisi_id = k.id and g.tur = 'gorusme' and g.ilce_id is not null), '{}') as gorusme_ilceleri,
-            coalesce((select array_agg(distinct g.ilce_id) from gorusmeler g where g.kisi_id = k.id and g.sonuc = 'aldi' and g.ilce_id is not null), '{}') as aldigi_ilceler,
+            coalesce((select array_agg(distinct g.ilce_id) from gorusmeler g where g.kisi_id = k.id and g.tur = 'gorusme' and g.ilce_id is not null
+                        and (g.kategori is null or g.kategori = any($6::text[])) and (g.islem is null or g.islem = $7)), '{}') as gorusme_ilceleri,
+            coalesce((select array_agg(distinct g.ilce_id) from gorusmeler g where g.kisi_id = k.id and g.sonuc = 'aldi' and g.ilce_id is not null
+                        and (g.islem is null or g.islem = $7)), '{}') as aldigi_ilceler,
             (select max(ms.gonderildi_at) from mesajlar ms where ms.kisi_id = k.id and ms.mulk_id = $3) as son_mesaj_at
        from kisiler k
       where k.sahip_id = $1 and k.silindi_at is null and not (k.id = any($2::uuid[]))
         and (k.id is distinct from $4)
         and (k.potansiyel = 'A' or k.yatirimci_tipi is not null or exists (select 1 from gorusmeler g where g.kisi_id = k.id and g.ilce_id = $5))`,
-    [sahipId, haricKisiler, mulk.id || null, mulk.malik_kisi_id || null, mulk.ilce_id || null]);
+    [sahipId, haricKisiler, mulk.id || null, mulk.malik_kisi_id || null, mulk.ilce_id || null, kategoriler, mulk.islem || "satilik"]);
   const liste = [];
   for (const k of kisiler) {
     const s = talepsizAday(k, mulk, { kur: kur?.usd_try, ayarlar });

@@ -330,6 +330,252 @@ test("belge: yalnızca PDF ve fotoğraf kabul edilir; başka danışman indireme
   assert.equal(baskasi.statusCode, 403);
 });
 
+test("kim tanıştırdı / kimden geldi: kendi rehberinden bağlanır ve iki yönde görünür; başka danışmanın kişisi bağlanamaz, adı hiçbir yoldan sızmaz", async () => {
+  V.feride = idAl(await ayse.gonder("/kisiler", kisiFormu("Feride Emlakçı", "0555 666 00 01", { meslek: "Emlakçı" })));
+  V.nurten = idAl(await ayse.gonder("/kisiler", kisiFormu("Nurten Olursa", "0555 666 00 02", { yatirimci_tipi: "olursa_alir", calisma_bolge: `${yer.ilce}:`, calisma_kategorileri: "konut", referans_kisi_id: V.feride, referans_notu: "Feride Hanım'ın eski müşterisi" })));
+  const k = await sistem((q) => q.bir("select yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri, referans_kisi_id, referans_notu from kisiler where id = $1", [V.nurten]));
+  assert.deepEqual(k, { yatirimci_tipi: "olursa_alir", calisma_bolgeleri: [{ ilce: yer.ilce, mahalle: null }], calisma_kategorileri: ["konut"], referans_kisi_id: V.feride, referans_notu: "Feride Hanım'ın eski müşterisi" });
+  const nurtenKart = await ayse.al(`/kisiler/${V.nurten}`);
+  assert.match(nurtenKart.body, new RegExp(`<dt>Kim tanıştırdı</dt><dd><a href="/kisiler/${V.feride}">Feride Emlakçı</a> · Feride Hanım&#39;ın eski müşterisi</dd>`));
+  assert.match(nurtenKart.body, /<dt>Tipi<\/dt><dd>olursa alır · Karşıyaka · konut<\/dd>/);
+  assert.doesNotMatch(nurtenKart.body, /style="/);
+  // Mülkü getiren kişi; mülkün sahibi belli değilse ofis mülkü olarak girer
+  V.ferideMulk = idAl(await ayse.gonder("/mulkler", daireFormu({ ofis_mulku: "1", kaynak_kisi_id: V.feride, kaynak_notu: "komşusunun dairesi", baslik: "Feride'nin getirdiği daire", fiyat_tutar: "6.000.000", notlar: "anahtar kapıcıda" })));
+  const ferideKart = await ayse.al(`/kisiler/${V.feride}`);
+  assert.match(ferideKart.body, /Tanıştırdığı kişiler \(1\)/); assert.match(ferideKart.body, new RegExp(`href="/kisiler/${V.nurten}">Nurten Olursa</a><small>Feride Hanım&#39;ın eski müşterisi`));
+  assert.match(ferideKart.body, /Getirdiği yerler \(1\)/); assert.match(ferideKart.body, new RegExp(`href="/mulkler/${V.ferideMulk}">Feride&#39;nin getirdiği daire`));
+  const mulkKart = await ayse.al(`/mulkler/${V.ferideMulk}`);
+  assert.match(mulkKart.body, new RegExp(`<dt>Kimden geldi</dt><dd><a href="/kisiler/${V.feride}">Feride Emlakçı</a> · komşusunun dairesi</dd>`));
+  assert.match(mulkKart.body, /Talebi yok ama alabilir/); assert.match(mulkKart.body, /olursa alır, çalışma alanı uyuyor/, "“olursa alır” kişisi çalıştığı bölgede çıkan yerde aday gösterilir");
+  assert.match((await ayse.al("/mulkler")).body, /getiren: Feride Emlakçı/);
+  // Kişi kartındaki düğmeler formu hazır açar
+  assert.match((await ayse.al(`/kisiler/yeni?referans=${V.feride}`)).body, new RegExp(`name="referans_kisi_id" value="${V.feride}"`));
+  const hazir = await ayse.al(`/mulkler/yeni?kaynak=${V.feride}`);
+  assert.match(hazir.body, new RegExp(`name="kaynak_kisi_id" value="${V.feride}"`)); assert.match(hazir.body, /name="ofis_mulku" value="1" checked/);
+  assert.match((await ayse.al(`/kisiler/${V.nurten}/duzenle`)).body, new RegExp(`name="referans_kisi_id" value="${V.feride}"`));
+  assert.match((await ayse.al(`/mulkler/${V.ferideMulk}/duzenle`)).body, new RegExp(`name="kaynak_kisi_id" value="${V.feride}"`));
+
+  // Başka danışmanın kişisi tanıştıran ya da getiren olarak seçilemez; kişi kendi tanıştıranı olamaz
+  for (const [yol, form] of [["/kisiler", kisiFormu("Sızma Denemesi", "0555 666 00 03", { referans_kisi_id: V.burak })], [`/kisiler/${V.nurten}`, kisiFormu("Nurten Olursa", "0555 666 00 02", { referans_kisi_id: V.burak })],
+    [`/kisiler/${V.nurten}`, kisiFormu("Nurten Olursa", "0555 666 00 02", { referans_kisi_id: V.nurten })], ["/mulkler", daireFormu({ ofis_mulku: "1", baslik: "Sızma Denemesi", kaynak_kisi_id: V.burak })],
+    [`/mulkler/${V.ferideMulk}`, daireFormu({ ofis_mulku: "1", kaynak_kisi_id: V.burak })]]) {
+    assert.equal((await ayse.gonder(yol, form)).statusCode, 400, yol);
+  }
+  assert.equal((await sistem((q) => q("select 1 from kisiler where ad = 'Sızma Denemesi' union all select 1 from mulkler where baslik = 'Sızma Denemesi'"))).length, 0);
+  assert.equal((await sistem((q) => q.bir("select referans_kisi_id from kisiler where id = $1", [V.nurten]))).referans_kisi_id, V.feride, "reddedilen istek bağlantıyı değiştirmez");
+  assert.doesNotMatch((await ayse.al(`/kisiler/yeni?referans=${V.burak}`)).body, /Burak/);
+  assert.doesNotMatch((await ayse.al(`/mulkler/yeni?kaynak=${V.burak}&kisi=${V.burak}`)).body, /Burak/);
+  // Bağlantı veritabanında bir biçimde başkasının kişisini gösterse bile (hata, devir…) ad hiçbir ekrana gelmez: okuma kuralı korur
+  await sistem(async (q) => {
+    await q("update kisiler set referans_kisi_id = $2 where id = $1", [V.nurten, V.burak]);
+    await q("update mulkler set kaynak_kisi_id = $2 where id = $1", [V.ferideMulk, V.burak]);
+  });
+  for (const yol of [`/kisiler/${V.nurten}`, `/kisiler/${V.nurten}/duzenle`, `/mulkler/${V.ferideMulk}`, `/mulkler/${V.ferideMulk}/duzenle`, "/mulkler", "/ara?q=burak", "/ara?q=daire"]) assert.doesNotMatch((await ayse.al(yol)).body, /Burak/, yol);
+  const burakKart = await mehmet.al(`/kisiler/${V.burak}`);
+  assert.equal(burakKart.statusCode, 200); assert.doesNotMatch(burakKart.body, /Nurten Olursa|getirdiği daire/, "karşı taraf da öbür danışmanın kişisini ve mülkünü göremez");
+  assert.match(burakKart.body, /tanıştırdığı biri ya da getirdiği bir yer kayıtlı değil/);
+  await sistem(async (q) => {
+    await q("update kisiler set referans_kisi_id = $2 where id = $1", [V.nurten, V.feride]);
+    await q("update mulkler set kaynak_kisi_id = $2 where id = $1", [V.ferideMulk, V.feride]);
+  });
+  // Tanıştıran silinince bağlantı danışmanın ekranından kalkar, yazdığı not kalır; mülkün durumu yine değiştirilebilir
+  const araci = idAl(await ayse.gonder("/kisiler", kisiFormu("Silinecek Aracı", "0555 666 00 04")));
+  const tanisan = idAl(await ayse.gonder("/kisiler", kisiFormu("Aracıyla Gelen", "0555 666 00 05", { referans_kisi_id: araci, referans_notu: "aracının yeğeni" })));
+  const araciMulk = idAl(await ayse.gonder("/mulkler", daireFormu({ ofis_mulku: "1", kaynak_kisi_id: araci, kaynak_notu: "aracı getirdi", fiyat_tutar: "30.000.000" })));
+  assert.equal((await ayse.gonder(`/kisiler/${araci}/sil`)).statusCode, 302);
+  const tanisanKart = await ayse.al(`/kisiler/${tanisan}`);
+  assert.match(tanisanKart.body, /<dt>Kim tanıştırdı<\/dt><dd>aracının yeğeni<\/dd>/); assert.doesNotMatch(tanisanKart.body, /Silinecek Aracı/);
+  const araciMulkKart = await ayse.al(`/mulkler/${araciMulk}`);
+  assert.match(araciMulkKart.body, /<dt>Kimden geldi<\/dt><dd>aracı getirdi<\/dd>/); assert.doesNotMatch(araciMulkKart.body, /Silinecek Aracı/);
+  assert.equal((await ayse.gonder(`/mulkler/${araciMulk}/durum`, { durum: "pasif" })).statusCode, 302);
+  assert.equal((await sistem((q) => q.bir("select durum from mulkler where id = $1", [araciMulk]))).durum, "pasif");
+  assert.match((await patron.al(`/kisiler/${tanisan}`)).body, /Silinecek Aracı/, "kayıt sistem sahibinde durur");
+  // Dışa aktarmada (yalnızca sistem sahibi) iki bağlantı da yer alır
+  const csv = await patron.gonder("/yonetim/disa-aktar/kisiler");
+  assert.match(csv.body.split("\r\n")[0], /tanistiran;referans_notu/); assert.match(csv.body, /Nurten Olursa.*Feride Emlakçı.*Feride Hanım'ın eski müşterisi/);
+  assert.match((await patron.gonder("/yonetim/disa-aktar/mulkler")).body, /Feride Emlakçı;"?komşusunun dairesi/);
+});
+
+test("talebi yok ama alabilir: geçmiş ilgi yalnızca aynı tür ve aynı işlem (satılık / kiralık) için sayılır", async () => {
+  // Üç kişi aynı ilçede daha önce bir şey sormuş: biri kiralık daire, biri satılık arsa, biri satılık daire
+  const kisi = async (ad, tel, gorusme) => { const id = idAl(await ayse.gonder("/kisiler", kisiFormu(ad, tel))); assert.equal((await ayse.gonder(`/kisiler/${id}/gorusme`, { tarih: bugun(), ilce_id: String(yer.ilce), ...gorusme })).statusCode, 302); return id; };
+  await kisi("Kiralık Soran", "0555 666 00 11", { kategori: "konut", islem: "kiralik", notu: "kiralık daire sordu" });
+  await kisi("Arsa Soran", "0555 666 00 12", { kategori: "arsa", islem: "satilik", notu: "arsa sordu" });
+  await kisi("Daire Soran", "0555 666 00 13", { kategori: "konut", islem: "satilik", notu: "satılık daire sordu" });
+  await kisi("Türü Yazılmamış", "0555 666 00 14", { notu: "eski not, türü belli değil" });
+  const kart = (await ayse.al(`/mulkler/${V.ferideMulk}`)).body;
+  const adaylar = /Talebi yok ama alabilir[\s\S]*?<\/ul>/.exec(kart)[0];
+  assert.match(adaylar, /Daire Soran/); assert.match(adaylar, /bu ilçede daha önce görüşüldü/);
+  assert.match(adaylar, /Türü Yazılmamış/, "türü ve işlemi yazılmamış eski görüşme her mülk için sayılır");
+  assert.doesNotMatch(adaylar, /Kiralık Soran/, "kiralık soran, satılık yer için aday gösterilmez");
+  assert.doesNotMatch(adaylar, /Arsa Soran/, "arsa soran, daire için aday gösterilmez");
+  const g = await sistem((q) => q.bir("select islem, kategori from gorusmeler where notu = 'kiralık daire sordu'"));
+  assert.deepEqual(g, { islem: "kiralik", kategori: "konut" });
+  assert.match((await ayse.al(`/kisiler/${V.nurten}`)).body, /Tanıştırdıkları ve getirdiği yerler/);
+});
+
+test("her şeyde arama: notta geçen söz bulunur; danışman yalnızca kendi kayıtlarında arar, mülk notunu yalnızca sahibi arar", async () => {
+  assert.equal((await ayse.gonder(`/kisiler/${V.feride}/gorusme`, { tarih: bugun(), notu: "Ilıca'daki depo için tekrar arayacak", kategori: "is_yeri", islem: "kiralik" })).statusCode, 302);
+  assert.equal((await ayse.gonder(`/kisiler/${V.nurten}/hatirlatma`, { tarih: bugun(), notu: "Tapu fotokopisi istenecek" })).statusCode, 302);
+  V.gizli = idAl(await mehmet.gonder("/kisiler", kisiFormu("Gizli Müşteri", "0555 777 00 01", { notlar: "Ilıca'da depo arıyor; zeytinlik de olur", sirket: "Gizli İnşaat" })));
+  assert.equal((await mehmet.gonder(`/kisiler/${V.gizli}/gorusme`, { tarih: bugun(), notu: "Ilıca depo kirası konuşuldu" })).statusCode, 302);
+  await sistem((q) => q("update mulkler set notlar = 'Mehmet''in gizli notu: anahtar kapıcıda', baslik = 'Mehmet''in dairesi' where id = $1", [V.mehmetMulk]));
+
+  const ara = (t, q, kimin = "") => t.al("/ara?q=" + encodeURIComponent(q) + (kimin ? "&kimin=" + kimin : ""));
+  // Türkçe harf ve büyük-küçük harf fark etmez; sözcüklerin hepsi geçmeli; bulunan söz işaretlenir
+  const r = await ara(ayse, "ILICA depo");
+  assert.equal(r.statusCode, 200);
+  assert.match(r.body, /Görüşme notları \(1\)/); assert.match(r.body, new RegExp(`href="/kisiler/${V.feride}">Feride Emlakçı</a>`));
+  assert.match(r.body, /<mark>Ilıca<\/mark>&#39;daki <mark>depo<\/mark> için tekrar arayacak/);
+  assert.doesNotMatch(r.body, /Gizli|zeytinlik|kirası/, "başka danışmanın kişisi ve notu çıkmaz");
+  assert.doesNotMatch(r.body, /style="/);
+  for (const kimin of ["hepsi", K.mehmet]) assert.doesNotMatch((await ara(ayse, "gizli", kimin)).body, /Gizli Müşteri|Gizli İnşaat/, "danışmanda kimin=" + kimin + " işe yaramaz");
+  assert.match((await ara(ayse, "ılıca zeytinlik")).body, /kayıt bulunamadı/);
+  // Kişi: ad, meslek, tanıştırma notu, telefon
+  assert.match((await ara(ayse, "emlakci")).body, /Kişiler \(1\)[\s\S]*Feride Emlakçı/);
+  assert.match((await ara(ayse, "eski müşterisi")).body, /Nurten Olursa[\s\S]*Feride Hanım&#39;ın <mark>eski<\/mark> <mark>müşterisi<\/mark>/);
+  for (const numara of ["0555 666 00 02", "+90 555 666 00 02", "6660002"]) assert.match((await ara(ayse, numara)).body, /Kişiler \(1\)[\s\S]*Nurten Olursa/, numara);
+  assert.doesNotMatch((await ara(ayse, "0555 777 00 01")).body, /Gizli/);
+  // Mülk: başlık, ada / parsel, getiren kişi, not (yalnızca kendi mülkünde)
+  const m = await ara(ayse, "anahtar kapıcıda");
+  assert.match(m.body, /Mülkler \(1\)/); assert.match(m.body, /Feride&#39;nin getirdiği daire/); assert.match(m.body, /<mark>anahtar<\/mark> <mark>kapıcıda<\/mark>/); assert.doesNotMatch(m.body, /Mehmet/);
+  assert.match((await ara(ayse, "100/7")).body, new RegExp(`Mülkler \\(1\\)[\\s\\S]*href="/mulkler/${V.mulk}"[\\s\\S]*ada 100 / parsel 7`));
+  assert.match((await ara(ayse, "feride")).body, /Kişiler \(2\)[\s\S]*Feride Emlakçı[\s\S]*Nurten Olursa[\s\S]*Mülkler \(1\)[\s\S]*getiren: Feride Emlakçı/, "aracının adı: kendisi, tanıştırdığı kişi ve getirdiği yer birlikte gelir");
+  assert.match((await ara(ayse, "karşıyaka daire")).body, /Mülkler \(\d+\)/, "ilçe adı ve tür de aranır");
+  // Talep ve hatırlatma
+  assert.match((await ara(ayse, "zeynep")).body, /Kişiler \(1\)[\s\S]*Talepler \(1\)[\s\S]*Zeynep Dar Bütçe · Satılık/);
+  assert.match((await ara(ayse, "fotokopi")).body, /Hatırlatmalar \(1\)[\s\S]*Nurten Olursa[\s\S]*Tapu <mark>fotokopi<\/mark>si istenecek/, "sözcüğün yalnızca aranan kısmı işaretlenir");
+  // Yönetici bütün ekipte arayabilir; başkasının mülk notu ona da aranmaz ve gösterilmez
+  const y = await ara(mudur, "ılıca depo", "hepsi");
+  assert.match(y.body, /Gizli Müşteri/); assert.match(y.body, /Feride Emlakçı/); assert.match(y.body, /Mehmet Danışman/); assert.match(y.body, /Ayşe Danışman/);
+  assert.match((await ara(mudur, "ılıca depo", K.mehmet)).body, /Gizli Müşteri/); assert.doesNotMatch((await ara(mudur, "ılıca depo", K.mehmet)).body, /Feride Emlakçı/);
+  assert.match((await ara(mudur, "ılıca depo")).body, /kayıt bulunamadı/, "yöneticinin kendi rehberinde yok");
+  assert.match((await ara(mudur, "anahtar kapıcıda", "hepsi")).body, /kayıt bulunamadı/, "mülk notunu yalnızca sahibi görür ve arar");
+  const yb = await ara(mudur, "mehmet dairesi", "hepsi");
+  assert.match(yb.body, /Mülkler \(1\)/); assert.doesNotMatch(yb.body, /gizli notu/);
+  assert.match((await ara(mehmet, "gizli notu")).body, /Mehmet&#39;in <mark>gizli<\/mark> <mark>notu<\/mark>/);
+  // Silinen kişi danışmanın aramasında çıkmaz
+  assert.match((await ara(ayse, "silinecek")).body, /kayıt bulunamadı/); assert.match((await ara(patron, "silinecek", "hepsi")).body, /Silinecek Aracı/);
+  // Kötü niyetli ya da özel karakterli arama
+  const x = await ara(ayse, '<script>alert(1)</script>"');
+  assert.equal(x.statusCode, 200); assert.doesNotMatch(x.body, /<script>alert/); assert.match(x.body, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  for (const q of ["__", "%%", "\\\\", "'; drop table kisiler; --"]) { const o = await ara(ayse, q); assert.equal(o.statusCode, 200, q); assert.match(o.body, /kayıt bulunamadı/, q); }
+  assert.match((await ara(ayse, "a")).body, /en az iki harf/);
+  assert.match((await ayse.al("/ara")).body, /aynı anda arar/);
+  // Arama kutusu her sayfanın üstünde; giriş yapmayan kişi arayamaz
+  assert.match((await ayse.al("/kisiler")).body, /<form class="ust-ara" action="\/ara" method="get" role="search">/);
+  assert.match(r.body, /name="q" value="ILICA depo"/);
+  assert.equal((await new Tarayici().al("/ara?q=feride")).statusCode, 302);
+});
+
+test("toplu aktarım: Excel'deki kişi, geçmiş ilgi, talep, mülk ve aranacaklar yazılır; kayıtlı kişinin yalnızca boş alanı dolar; ikinci yüklemede hiçbir şey çift yazılmaz", async () => {
+  const { aktarimHazirla } = await import("../src/lib/aktarim-hazirla.js");
+  const { aktarimYaz } = await import("../src/servis/aktarim.js");
+  const sayfa = (basliklar, ...satirlar) => [basliklar, ...satirlar.map((o) => { for (const b of Object.keys(o)) assert.ok(basliklar.includes(b), "başlık yok: " + b); return basliklar.map((b) => o[b] ?? ""); })];
+  const sayfalar = {
+    "Okuyun": [["Bu sayfa okunmaz"]],
+    "Kişiler": sayfa(["Kişi No", "Ad Soyad", "Telefon", "Diğer telefonlar", "Şirket / Unvan", "Meslek", "Yatırımcı tipi", "Çalışma bölgeleri", "Çalışma türleri", "Alım gücü", "Alım gücü para", "Kim tanıştırdı / yakınlığı", "Tanıştıran Kişi No", "Hitap", "Notlar", "Aktar"],
+      { "Kişi No": "A1", "Ad Soyad": "Aktarılan Aracı", "Telefon": "0555 880 00 01", "Meslek": "Emlakçı" },
+      { "Kişi No": "A2", "Ad Soyad": "Aktarılan Yatırımcı", "Telefon": "0555 880 00 02", "Yatırımcı tipi": "Yatırımcı", "Çalışma bölgeleri": "Karşıyaka", "Çalışma türleri": "Konut", "Alım gücü": "12 milyon", "Alım gücü para": "TL",
+        "Kim tanıştırdı / yakınlığı": "Aracı'nın müşterisi", "Tanıştıran Kişi No": "A1", "Notlar": "Mavişehir'de daire bakıyordu" },
+      { "Kişi No": "A3", "Ad Soyad": "Feride (Excel'deki adı)", "Telefon": "0555 666 00 01", "Diğer telefonlar": "0555 880 00 03", "Meslek": "Müteahhit", "Yatırımcı tipi": "Al-satçı", "Çalışma türleri": "Arsa", "Hitap": "Abi", "Notlar": "Excel'deki not" },
+      { "Kişi No": "A4", "Ad Soyad": "Alınmayacak Kurum", "Telefon": "0555 880 00 04", "Aktar": "Hayır" }),
+    "Geçmiş ilgiler": sayfa(["Kişi No", "Ad Soyad", "Tarih", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Oda", "Sonuç", "Not", "Aktar"],
+      { "Kişi No": "A2", "Tarih": "07.09.2023", "Satılık / Kiralık": "Satılık", "Kategori": "Konut", "Alt tür": "Daire", "İlçe": "Karşıyaka", "Sonuç": "İlgilendi", "Not": "Mavişehir'de 3+1 baktı" },
+      { "Kişi No": "A2", "Tarih": 2021, "Not": "Eski bir arsa işi konuşuldu" },
+      { "Kişi No": "A1", "Not": "Ne zaman olduğu bilinmeyen görüşme" },
+      { "Kişi No": "A4", "Not": "kişisi alınmadığı için bu da alınmaz" }),
+    "Talepler": sayfa(["Kişi No", "Ad Soyad", "Tarih", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Oda", "Bütçe (en çok)", "Para", "Nottan", "Aktar"],
+      { "Kişi No": "A2", "Tarih": "01.10.2026", "Satılık / Kiralık": "Satılık", "Kategori": "Konut", "Alt tür": "Daire", "İlçe": "Karşıyaka", "Bütçe (en çok)": "10 milyon", "Para": "TL", "Nottan": "aktarılan talep" }),
+    "Aranacaklar": sayfa(["Kişi No", "Ad Soyad", "Telefon", "Ne için aranacak", "Ne zaman", "Durum", "Not"],
+      { "Kişi No": "A2", "Ne için aranacak": "Tapu günü sorulacak", "Durum": "Bekliyor" },
+      { "Kişi No": "A1", "Ne için aranacak": "Çoktan arandı", "Durum": "Arandı" }),
+    "Mülkler": sayfa(["Kişi No (sahibi)", "Ad Soyad", "Başlık", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Ada", "Parsel", "Alan m²", "Emsal", "Oda", "Fiyat", "Para", "Durum", "Kimden geldi", "Kaynak Kişi No", "Not tarihi", "Nottan", "Aktar"],
+      { "Başlık": "Aktarılan tarla", "Satılık / Kiralık": "Satılık", "Kategori": "Arsa", "Alt tür": "Tarla", "İlçe": "Menderes", "Ada": 55, "Parsel": 3, "Alan m²": 4000, "Para": "TL", "Durum": "Arşiv", "Kimden geldi": "Aracı getirdi", "Kaynak Kişi No": "A1",
+        "Not tarihi": "05.03.2024", "Nottan": "eski yer, fiyatı yazılmamış" },
+      { "Kişi No (sahibi)": "A2", "Satılık / Kiralık": "Satılık", "Kategori": "Konut", "Alt tür": "Daire", "İlçe": "Karşıyaka", "Oda": "3+1", "Fiyat": 8000000, "Para": "TL", "Durum": "Satışta", "Nottan": "aktarılan daire" }),
+    "Ofis grubu": [["Tarih", "Kim", "Kişi No", "Yer / Arayış / Sonuç"], ["01.01.2026", "Bir danışman", "", "Bu sayfa aktarılmaz"]],
+  };
+  const yaz = (q, danisman = "ayse@ornek.test", deneme = false) => q("select id, ad from iller").then(async (iller) => aktarimYaz(q, aktarimHazirla(sayfalar,
+    { konum: { iller, ilceler: await q("select id, il_id, ad from ilceler"), mahalleler: await q("select id, ilce_id, ad from mahalleler") }, varsayilanDanisman: danisman }), { dosyaAdi: "deneme.xlsx", deneme }));
+  const say = () => sistem((q) => q.bir(`select (select count(*) from kisiler) as kisi, (select count(*) from kisi_telefonlari) as telefon, (select count(*) from talepler) as talep, (select count(*) from mulkler) as mulk,
+    (select count(*) from gorusmeler) as gorusme, (select count(*) from hatirlatmalar) as hatirlatma, (select count(*) from islem_kaydi where eylem = 'toplu_aktarim') as kayit`));
+  const once = await say();
+
+  // Hesabı olmayan danışman: hiçbir şey yazılmaz
+  await assert.rejects(sistem((q) => yaz(q, "olmayan@ornek.test")), /hesabı olmayan danışman: olmayan@ornek\.test/);
+  // Deneme: komut işlemi geri alır (scripts/aktar.js --yaz verilmeyince böyle çalışır)
+  class Vazgec extends Error {}
+  let deneme;
+  await assert.rejects(sistem(async (q) => { deneme = await yaz(q, "ayse@ornek.test", true); throw new Vazgec(); }), Vazgec);
+  assert.deepEqual([deneme.kisi, deneme.mevcut, deneme.talep, deneme.mulk, deneme.ilgi, deneme.hatirlatma], [2, 1, 1, 2, 3, 1]);
+  assert.deepEqual(await say(), once, "deneme hiçbir şey yazmaz");
+
+  const o = await sistem((q) => yaz(q));
+  assert.deepEqual({ ...o, eslesme: null, alinmayan: null, uyarilar: null }, { kisi: 2, mevcut: 1, guncellenen: 1, telefon: 3, referans: 1, talep: 1, mulk: 2, ilgi: 3, hatirlatma: 1, ayni: 0, eslesme: null, alinmayan: null, uyarilar: null });
+  assert.ok(o.eslesme > 0, "aktarımdan sonra eşleşmeler yeniden hesaplanır");
+  assert.deepEqual(o.alinmayan.map((a) => `${a.sayfa}:${a.satir}:${a.neden}`), ["Kişiler:5:Aktar: Hayır", "Geçmiş ilgiler:5:“A4” numaralı kişi Kişiler sayfasında yok ya da aktarılmıyor", "Aranacaklar:3:Durum: Arandı"]);
+  assert.deepEqual(o.uyarilar, []);
+
+  const kisi = (ad) => sistem((q) => q.bir(`select k.*, to_char(k.son_temas_at, 'YYYY-MM-DD') as son_temas, (select array_agg(t.numara order by t.ana desc, t.numara) from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as numaralar,
+    (select array_agg(t.ana order by t.ana desc, t.numara) from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as analar from kisiler k where k.ad = $1 and k.sahip_id = $2`, [ad, K.ayse]));
+  const araci = await kisi("Aktarılan Aracı"), yatirimci = await kisi("Aktarılan Yatırımcı"), feride = await kisi("Feride Emlakçı");
+  assert.equal(araci.meslek, "Emlakçı");
+  assert.deepEqual([yatirimci.yatirimci_tipi, yatirimci.calisma_bolgeleri, yatirimci.calisma_kategorileri, yatirimci.alim_gucu_tutar, yatirimci.alim_gucu_para, yatirimci.alim_gucu_usd, yatirimci.referans_kisi_id, yatirimci.referans_notu],
+    ["yatirimci", [{ ilce: yer.ilce, mahalle: null }], ["konut"], 12000000, "TRY", 300000, araci.id, "Aracı'nın müşterisi"]);
+  assert.equal(yatirimci.son_temas, "2026-10-01", "son temas: günü belli olan en yeni ilgi ya da talep tarihi");
+  // Rehberde zaten olan kişi: adı, mesleği, hitabı korunur; yalnızca boş alanlar dolar; yeni numarası eklenir
+  assert.equal(feride.id, V.feride);
+  assert.deepEqual([feride.meslek, feride.hitap_turu, feride.notlar, feride.yatirimci_tipi, feride.calisma_kategorileri], ["Emlakçı", "bey", "Excel'deki not", "al_satci", ["arsa"]]);
+  assert.deepEqual([feride.numaralar, feride.analar], [["905556660001", "905558800003"], [true, false]]);
+  assert.equal((await sistem((q) => q("select 1 from kisiler where ad like 'Feride (Excel%' or ad like 'Alınmayacak%'"))).length, 0);
+
+  const gorusmeler = await sistem((q) => q("select g.tarih, g.tarih_yaklasik, g.tur, g.islem, g.kategori, g.alt_tur, g.ilce_id, g.sonuc, g.notu, g.sahip_id from gorusmeler g where g.kisi_id = any($1::uuid[]) order by g.notu", [[araci.id, yatirimci.id]]));
+  assert.deepEqual(gorusmeler, [
+    { tarih: "2021-01-01", tarih_yaklasik: true, tur: "gorusme", islem: null, kategori: null, alt_tur: null, ilce_id: null, sonuc: null, notu: "Eski bir arsa işi konuşuldu", sahip_id: K.ayse },
+    { tarih: "2023-09-07", tarih_yaklasik: false, tur: "gorusme", islem: "satilik", kategori: "konut", alt_tur: "daire", ilce_id: yer.ilce, sonuc: "ilgilendi", notu: "Mavişehir'de 3+1 baktı", sahip_id: K.ayse },
+    { tarih: null, tarih_yaklasik: false, tur: "gorusme", islem: null, kategori: null, alt_tur: null, ilce_id: null, sonuc: null, notu: "Ne zaman olduğu bilinmeyen görüşme", sahip_id: K.ayse }]);
+  const talep = await sistem((q) => q.bir("select t.*, to_char(t.son_teyit_at, 'YYYY-MM-DD') as teyit from talepler t where t.kisi_id = $1", [yatirimci.id]));
+  assert.deepEqual([talep.sahip_id, talep.islem, talep.kategoriler, talep.alt_turler, talep.bolgeler, talep.butce_max_tutar, talep.butce_max_usd, talep.notlar, talep.teyit, talep.durum],
+    [K.ayse, "satilik", ["konut"], ["konut:daire"], [{ ilce: yer.ilce, mahalle: null }], 10000000, 250000, "aktarılan talep", "2026-10-01", "aktif"]);
+  const tarla = await sistem((q) => q.bir("select m.*, to_char(m.olusturma_at, 'YYYY-MM-DD') as geldi, i.ad as ilce from mulkler m join ilceler i on i.id = m.ilce_id where m.baslik = 'Aktarılan tarla'"));
+  assert.deepEqual([tarla.sahip_id, tarla.ofis_mulku, tarla.malik_kisi_id, tarla.durum, tarla.kategori, tarla.alt_tur, tarla.ilce, tarla.ada, tarla.parsel, tarla.fiyat_tutar, tarla.ozellikler, tarla.kaynak_kisi_id, tarla.kaynak_notu, tarla.geldi, tarla.notlar],
+    [K.ayse, true, null, "pasif", "arsa", "tarla", "Menderes", "55", "3", null, { m2: 4000 }, araci.id, "Aracı getirdi", "2024-03-05", "eski yer, fiyatı yazılmamış"]);
+  const daire = await sistem((q) => q.bir("select * from mulkler where notlar = 'aktarılan daire'"));
+  assert.deepEqual([daire.malik_kisi_id, daire.ofis_mulku, daire.durum, daire.fiyat_tutar, daire.ozellikler], [yatirimci.id, false, "aktif", 8000000, { oda: "3+1" }]);
+  assert.ok((await sistem((q) => q("select 1 from eslesmeler where talep_id = $1 and gecerli", [talep.id]))).length >= 1, "aktarılan talep eldeki dairelerle eşleşir");
+  assert.equal((await sistem((q) => q("select 1 from eslesmeler where mulk_id = $1 and gecerli", [tarla.id]))).length, 0, "arşivdeki yer eşleştirmeye girmez");
+  const hat = await sistem((q) => q.bir("select tarih, notu, sahip_id, tamamlandi_at from hatirlatmalar where kisi_id = $1", [yatirimci.id]));
+  assert.deepEqual(hat, { tarih: bugun(), notu: "Tapu günü sorulacak", sahip_id: K.ayse, tamamlandi_at: null });
+  const kayit = await sistem((q) => q.bir("select kullanici_id, ayrinti from islem_kaydi where eylem = 'toplu_aktarim'"));
+  assert.equal(kayit.kullanici_id, null); assert.equal(kayit.ayrinti.dosya, "deneme.xlsx"); assert.equal(kayit.ayrinti.kisi, 2); assert.equal(kayit.ayrinti.alinmayan, 3);
+
+  // Ekranda: tarihi bilinmeyen ve yalnızca yılı bilinen görüşme; danışmanın bugünkü listesi; arama; gizlilik
+  const yKart = (await ayse.al(`/kisiler/${yatirimci.id}`)).body;
+  assert.match(yKart, /7 Eylül 2023 · Görüşme · İlgilendi/); assert.match(yKart, /<span class="ad">2021 · Görüşme<\/span>/); assert.match(yKart, /Karşıyaka · Daire/);
+  assert.match(yKart, new RegExp(`<dt>Kim tanıştırdı</dt><dd><a href="/kisiler/${araci.id}">Aktarılan Aracı</a>`)); assert.match(yKart, /Tapu günü sorulacak/);
+  const aKart = (await ayse.al(`/kisiler/${araci.id}`)).body;
+  assert.match(aKart, /tarihi bilinmiyor · Görüşme/); assert.match(aKart, /Tanıştırdığı kişiler \(1\)/); assert.match(aKart, /Getirdiği yerler \(1\)[\s\S]*Aktarılan tarla[\s\S]*Pasif/);
+  assert.match((await ayse.al("/")).body, /Aktarılan Yatırımcı/, "aranacak kişi bugünkü listede");
+  const bulunan = (await ayse.al("/ara?q=" + encodeURIComponent("mavişehir"))).body;
+  assert.match(bulunan, /Kişiler \(1\)[\s\S]*Aktarılan Yatırımcı/); assert.doesNotMatch(bulunan, /Görüşme notları/, "kişisi zaten listelenen görüşme ayrıca yinelenmez");
+  assert.match((await ayse.al("/ara?q=" + encodeURIComponent("eski arsa işi"))).body, /Görüşme notları \(1\)[\s\S]*Aktarılan Yatırımcı<\/a><small>2021<\/small>/);
+  assert.match((await ayse.al("/ara?q=" + encodeURIComponent("55/3 tarla"))).body, /Mülkler \(1\)[\s\S]*Aktarılan tarla[\s\S]*ada 55 \/ parsel 3[\s\S]*Pasif/);
+  assert.equal((await mehmet.al(`/kisiler/${yatirimci.id}`)).statusCode, 404);
+  assert.match((await mehmet.al("/ara?q=" + encodeURIComponent("aktarılan"))).body, /kayıt bulunamadı/);
+
+  // Aynı kitap ikinci kez yüklenirse hiçbir şey çift yazılmaz
+  const ara1 = await say();
+  const o2 = await sistem((q) => yaz(q));
+  assert.deepEqual({ ...o2, eslesme: null, alinmayan: null, uyarilar: null }, { kisi: 0, mevcut: 3, guncellenen: 0, telefon: 0, referans: 0, talep: 0, mulk: 0, ilgi: 0, hatirlatma: 0, ayni: 7, eslesme: null, alinmayan: null, uyarilar: null });
+  assert.deepEqual(await say(), { ...ara1, kayit: ara1.kayit + 1 });
+  // Danışman Satal'da bir şeyi değiştirdiyse yeniden yükleme üstüne yazmaz
+  await ayse.gonder(`/kisiler/${yatirimci.id}`, kisiFormu("Aktarılan Yatırımcı", "0555 880 00 02", { notlar: "Satal'da elle yazılan not", meslek: "Doktor", referans_kisi_id: araci.id, referans_notu: "Aracı'nın müşterisi" }));
+  await sistem((q) => yaz(q));
+  const sonra = await kisi("Aktarılan Yatırımcı");
+  assert.deepEqual([sonra.notlar, sonra.meslek, sonra.hitap_turu], ["Satal'da elle yazılan not", "Doktor", "bey"]);
+});
+
 test("üyelik: davet → e-posta ile şifre belirleme → yönetici onayı → giriş; yanlış şifre ve onaysız giriş reddedilir", async () => {
   hizTemizle();
   const d = await mudur.gonder("/yonetim/davet", { eposta: "yeni@ornek.test" });

@@ -165,3 +165,15 @@ small.blok { display: block; margin: 2px 0 4px; }
 .olcut { grid-template-columns: 1fr; align-items: start; }
 .olcut .etiket { font-weight: 600; }
 @media (min-width: 760px) { .olcut { grid-template-columns: 180px 1fr auto; align-items: center; } }
+/* Her şeyde arama: üst çubuktaki kutu ve sonuçlarda bulunan sözün işareti */
+.ust-ara { flex: 1 1 130px; max-width: 300px; margin: 0 0 0 auto; }
+.ust-ara input[type=search] { min-height: 36px; padding: 6px 14px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .16); color: #fff; font-size: .95rem; }
+.ust-ara input[type=search]::placeholder { color: #cfe3e1; opacity: 1; }
+.ust-ara input[type=search]:focus { background: #fff; color: var(--yazi); outline: 2px solid #9fd0cc; }
+.ust-ara input[type=search]:focus::placeholder { color: var(--soluk); }
+.ust-ara + .profil-dugme { margin-left: 0; }
+@media (min-width: 760px) { .ust-ara { flex: 0 1 230px; } }
+mark { background: #fff1a8; color: inherit; border-radius: 3px; padding: 0 1px; }
+.kesit { overflow-wrap: anywhere; }
+/* Sayfa içi kısa yollar (arama bölümleri, kişinin getirdikleri): başlık sabit üst çubuğun altında kalmasın */
+.kart[id] { scroll-margin-top: 66px; }

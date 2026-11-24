@@ -38,8 +38,29 @@ docker compose exec uygulama node scripts/aktar.js /tmp/aktarim.xlsx --danisman 
 docker compose exec uygulama node scripts/aktar.js /tmp/aktarim.xlsx --danisman <Sadık'ın e-postası> --yaz  # sonra yazar
 docker compose exec uygulama rm /tmp/aktarim.xlsx
 ```
-Deneme hiçbir şey yazmaz; kaç kişi, talep ve mülk gireceğini ve alınmayan satırları nedenleriyle gösterir. Dosya iki
-kez yüklenirse aynı kişi, talep ve mülk yeniden eklenmez. Sayfa ve sütun düzeni: `src/lib/aktarim-hazirla.js`.
+Deneme hiçbir şey yazmaz; neyin gireceğini, alınmayan satırları ve bir bilgisi eksik giren satırları nedenleriyle
+gösterir. `--rapor sorunlar.csv` eklenirse bu satırların listesi dosyaya yazılır (Excel'de açılır). Yazma tek
+işlemdir: bir hata çıkarsa hiçbir şey yazılmaz.
+
+Kitaptan okunan sayfalar ve Satal'daki karşılıkları:
+
+| Sayfa | Satal'da |
+|---|---|
+| Kişiler | Kişiler: tipi (yatırımcı / al-satçı / olursa alır), çalıştığı bölge ve tür, alım gücü, kim tanıştırdı |
+| Geçmiş ilgiler | Kişinin görüşme geçmişi (tarihi bilinmeyebilir ya da yalnızca yıl olabilir). Talep değildir. |
+| Talepler | Talepler. Kitaptaki tarih talebin söylendiği gün sayılır; "hâlâ arıyor mu?" ona göre sorulur. |
+| Aranacaklar | Geri arama hatırlatması; "Bugün kimi aramalıyım?" listesine düşer. |
+| Mülkler | Mülkler. Satışta → aktif, Arşiv → pasif (eşleştirmeye girmez), Satıldı → satıldı; kimden geldiği. |
+
+Öbür sayfalar (Okuyun, Ofis grubu, Keep notları, WhatsApp…) okunmaz. "Aktar" sütununda "Hayır" yazan satır girmez.
+Sütun düzeni: `src/lib/aktarim-hazirla.js`.
+
+Dosya iki kez yüklenirse hiçbir şey çift yazılmaz: rehberde zaten olan numara yeniden eklenmez (kayıtlı kişinin
+yalnızca boş alanları dolar; Satal'da elle yazılanın üstüne yazılmaz), aynı talep, mülk, geçmiş ilgi ve hatırlatma
+yeniden açılmaz. Danışmanın Satal'da sildiği bir kişi ise yeniden yüklemede yeni kayıt olarak açılır.
+
+25.11.2026'da gerçek kitapla yerel bir deneme veritabanında denendi: 4.040 kişi, 303 mülk, 226 geçmiş ilgi,
+34 hatırlatma ve 5 talep 5 saniyede girdi; ikinci yüklemede hiçbir şey eklenmedi.
 
 ## Yedek
 Her gece veritabanı ve belgeler yedeklenir, 30 gün saklanır:

@@ -20,6 +20,7 @@ import mulkRotalari from "./rotalar/mulkler.js";
 import talepRotalari from "./rotalar/talepler.js";
 import mesajRotalari from "./rotalar/mesaj.js";
 import yonetimRotalari from "./rotalar/yonetim.js";
+import araRotalari from "./rotalar/ara.js";
 import { zamanlayiciBaslat } from "./servis/zamanli.js";
 
 const SURUM = crypto.createHash("sha1").update(fs.readFileSync(new URL("./statik/stil.css", import.meta.url))).update(fs.readFileSync(new URL("./statik/uygulama.js", import.meta.url))).digest("hex").slice(0, 8);
@@ -144,7 +145,7 @@ export async function uygulamaKur() {
   app.get("/sw.js", { config: { acik: true } }, (req, reply) => reply.type("text/javascript").header("cache-control", "no-cache").sendFile("sw.js"));
   app.get("/robots.txt", { config: { acik: true } }, (req, reply) => reply.type("text/plain").send("User-agent: *\nDisallow: /\n"));
 
-  for (const r of [girisRotalari, anaRotalar, kisiRotalari, mulkRotalari, talepRotalari, mesajRotalari, yonetimRotalari]) await app.register(r);
+  for (const r of [girisRotalari, anaRotalar, kisiRotalari, mulkRotalari, talepRotalari, mesajRotalari, yonetimRotalari, araRotalari]) await app.register(r);
   return app;
 }
 
