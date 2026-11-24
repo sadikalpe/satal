@@ -1,0 +1,28 @@
+{
+  "name": "satal-crm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/sunucu.js",
+    "dev": "node --watch src/sunucu.js",
+    "migrate": "node scripts/migrate.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test:birim": "node --test test/birim-*.test.js",
+    "ornek-veri": "node scripts/ornek-veri.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.13.0",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/formbody": "^9.0.2",
+    "@fastify/multipart": "^10.1.9",
+    "@fastify/static": "^10.1.12",
+    "fastify": "^5.12.8",
+    "jose": "^6.2.18",
+    "nodemailer": "^10.6.1",
+    "pg": "^8.23.1"
+  }
+}
