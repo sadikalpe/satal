@@ -2,9 +2,9 @@
 
 **Şu an:** Satal'a "kontrol listesi" eklendi; PR 7 açık, Sadık'ın onayını bekliyor (dal `claude/project-thread-zypzh0`).
 Hafıza eklemeleri ve aktarım PR 6 ile ana kopyada (25.11.2026, Sadık onayladı).
-Sıradaki adımlar: (1) PR 7 onaylanınca ana kopyaya alınır, (2) aktarım kitabında kalan 10 soru Sadık'a üçer üçer
-sorulur, yanıtlar kitaba işlenir, (3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir
-(`crm/KURULUM.md`).
+Sıradaki adımlar: (1) PR 7 onaylanınca ana kopyaya alınır, (2) Sadık'tan rehberin güncel hali (Google "Kişiler"
+dökümü) ve 25.11.2026'da sorulan soruların yanıtı bekleniyor; gelince kitaba işlenir, kalan sorular üçer üçer
+sorulur, (3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
 
 ## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
 Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
@@ -99,8 +99,14 @@ Satal'a eklenenler (şema: `crm/migrations/003_kontrol.sql`, ekran: `/kontrol`):
   başlığında, betikte `hafiza_veri.py` → `YANITLAR`. Yanıt gelince: `hafiza_veri.py` düzeltilir, `hafiza.py` yeniden
   çalıştırılır (girdi `kaynak/` klasöründeki ilk düzen), eski ve yeni kitap hücre hücre karşılaştırılır, yükleme
   yeniden denenir.
-- Bekleyen: Okuyun sayfasındaki 10 soru (5, 6, 7, 8, 10, 11, 13, 14, 15, 16); Sadık'a sohbette üçer üçer sorulur.
-  24 WhatsApp sohbetinin 13'ünde telefon numarası yok.
+- Bekleyen: Okuyun sayfasındaki 10 soru (5, 6, 7, 8, 10, 11, 13, 14, 15, 16); Sadık'a sohbette üçer üçer sorulur
+  (en çok kaydı kapatacak ve en yeni olanlar önce).
+- Rehber dosyası eski kalmış: Sadık'ın son aylarda kaydettiği kişiler içinde yok. 24 WhatsApp sohbetinin 13'ünde
+  telefon numarası yok (2'si ofis içi; 11'i rehber dosyasında bulunmayan kişiler). Kontrol listesindeki "bu kim?"
+  sorularının bir bölümü bu yüzden açık: kişi belli, numarası yok. 25.11.2026'da Sadık'tan, Keep'te yaptığı gibi
+  Google'dan "Kişiler"i indirip Drive'ındaki Takeout klasörüne bırakması ya da numaraları yazması istendi; aynı
+  mesajda iki "bu kim?" sorusu da soruldu. Yanıt bekleniyor. Dosya gelirse: rehberde olmayan numaralar yeni kişi
+  olarak eklenir, WhatsApp özetleri notlarına yazılır, getirdikleri yerler ve tanıştırdıkları kişiler bağlanır.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Unutturma (25.11.2026): Sadık'ın notunda getiren ya da tanıştıran olarak geçen bir ad rehberde bulunamıyorsa o gün
