@@ -9,6 +9,8 @@
 //   Kişiler → kişiler (tipi, çalıştığı bölge ve tür, alım gücü, kim tanıştırdı dahil)   Talepler → talepler
 //   Mülkler → mülkler (Satışta: aktif, Arşiv: pasif, Satıldı: satıldı; kimden geldiği dahil)
 //   Geçmiş ilgiler → kişinin görüşme geçmişi   Aranacaklar → geri arama hatırlatmaları
+//   "Kontrol" sütunu (Kişiler, Mülkler, Geçmiş ilgiler) → kaydın teyit notu; danışmanın kontrol listesinde bekler.
+//   "Tanıştıran durumu" / "Getiren durumu" sütunu (Rehberde yok, Bilinmiyor) → adıyla yazılmış kişi için verilmiş yanıt.
 //   Öbür sayfalar (Okuyun, Ofis grubu, Keep notları, WhatsApp…) okunmaz. Sütun düzeni: src/lib/aktarim-hazirla.js
 //
 // Kurallar:
@@ -61,6 +63,7 @@ function rapor(o, yazildi) {
   console.log(`  Kim tanıştırdı bağlantısı: ${o.referans}`);
   console.log(`  Talep: ${o.talep}   Mülk: ${o.mulk}   Eşleşme: ${o.eslesme}`);
   console.log(`  Geçmiş ilgi: ${o.ilgi}   Aranacak (hatırlatma): ${o.hatirlatma}`);
+  console.log(`  Kontrol listesine giren: ${o.kim} “bu kim?” sorusu (getireni ya da tanıştıranı yalnızca adla yazılı), ${o.teyit} teyit bekleyen bilgi`);
   if (o.ayni) console.log(`  Daha önce aktarılmış olduğu için atlanan kayıt: ${o.ayni}`);
   const dok = (baslik, liste) => {
     if (!liste.length) return;

@@ -1,8 +1,10 @@
 # Kaldığımız yer (25.11.2026)
 
-**Şu an:** Satal'a hafıza eklemeleri ve yeni aktarım PR 6 ile ana kopyaya girdi (25.11.2026, Sadık onayladı).
-Sıradaki adımlar: (1) Sadık'ın aktarım kitabındaki kalan sorulara yanıtları geldikçe kitaba işlenir, (2) Halis Bey'den
-sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
+**Şu an:** Satal'a "kontrol listesi" eklendi; PR 7 açık, Sadık'ın onayını bekliyor (dal `claude/project-thread-zypzh0`).
+Hafıza eklemeleri ve aktarım PR 6 ile ana kopyada (25.11.2026, Sadık onayladı).
+Sıradaki adımlar: (1) PR 7 onaylanınca ana kopyaya alınır, (2) aktarım kitabında kalan 10 soru Sadık'a üçer üçer
+sorulur, yanıtlar kitaba işlenir, (3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir
+(`crm/KURULUM.md`).
 
 ## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
 Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
@@ -43,14 +45,40 @@ Satal'a eklenenler (şema: `crm/migrations/002_hafiza.sql`):
   silinmez; sistem sahibi arama kutusuyla bulup notu düzeltir. Arama düz metin taraması yapar; kayıt çok büyürse
   dizin (pg_trgm) eklenir.
 
+## Kontrol listesi (25.11.2026) — PR 7, dal `claude/project-thread-zypzh0`
+Sadık'ın isteği (bir yeri getirenin kim olduğunu hatırlayamayınca): "Unutuyorum gidiyor. Bunları bana unutturmaman
+lazım. Bunları check edebilmem lazım." Sorunun kökü: nota yalnızca ad yazılıyor, kişi rehberden seçilmiyor; yıllar sonra
+o adın kim olduğu bilinmiyor. Çözüm: adı yazdığı gün sormak ve açık kalan her soruyu tek ekranda toplamak.
+Satal'a eklenenler (şema: `crm/migrations/003_kontrol.sql`, ekran: `/kontrol`):
+- **Bu kim?** Getireni ya da tanıştıranı yalnızca adla yazılmış, rehberdeki bir kişiye bağlanmamış her kayıt açık
+  sorudur. Kayıt kaydedilir kaydedilmez kartında sorulur; yanıtlanana kadar kontrol listesinde ve "Bugün" ekranındaki
+  sayaçta durur. Aynı ada ait kayıtlar tek öbekte toplanır ("Feride Hanım", "Feride Hanım üzerinden", "Feride'nin
+  arkadaşı"), rehberden adı benzeyenler telefonuyla önerilir, tek dokunuşla hepsi bağlanır. Öbekleme ve öneri kuralı:
+  `crm/src/alan/kontrol.js`.
+- Üç yanıt: rehberdeki kişiye bağla · "Rehberimde yok" (adıyla kalır, bir daha sorulmaz) · "Hatırlamıyorum" (kayıtta
+  "kim olduğu bilinmiyor" diye görünür, listenin altında "hatırlanmayanlar"da bekler; hatırlanınca oradan bağlanır).
+- **Teyit bekleyen:** kayıttaki bir varsayım ya da eksik (kontrol notu). Aktarım kitabındaki "Kontrol" sütunu buraya
+  gelir. "Kontrol ettim" notu kaldırır; geçmiş görüşmede "Yanlış" denirse görüşmenin yeri boşaltılır, notu kalır.
+- Herkes yalnızca kendi kayıtlarının sorularını görür ve yanıtlar (yönetici de). Rehber devrinde ayrılanın yanıtlamadığı
+  "bu kim?" soruları devralana soru olarak geçmez, "hatırlanmayanlar"a düşer.
+- Aktarım: kitaptaki "Tanıştıran durumu" (Kişiler) ve "Getiren durumu" (Mülkler) sütunları okunur ("Rehberde yok" /
+  "Bilinmiyor"). Kontrol notu yalnızca yeni açılan kayda yazılır; Satal'da yanıtlanan soru yeniden yüklemede geri gelmez.
+- Bilerek yapılmayanlar: getiren hiç yazılmamışsa sorulmaz (her yerin getireni olmaz); kontrol notu Satal'da elle
+  eklenmez (ihtiyaç doğarsa eklenir).
+- Denetim: `npm test` → 67 test. Gerçek kitapla yerel deneme veritabanında denendi (sonra silindi), liste tarayıcıda
+  baştan sona kullanıldı. `npm run ornek-veri` ile gelen uydurma kayıtlarda da listede örnek sorular var.
+- Satal açılana kadar aynı iş aktarım kitabında yürür: "Kontrol listesi" sayfası (aşağıda).
+
 ## Eldeki verilerin aktarımı (24–25.11.2026)
 - Kaynaklar: Sadık'ın telefon rehberi (4.172 satır), Google Keep notları, WhatsApp (24 sohbet + ofis grubu). Hepsi tek
   bir "aktarım çalışma kitabı"nda; gerçek kişi verisi içerdiği için depoda DEĞİL, proje dosyalarında:
   `satal-aktarim/satal-aktarim.xlsx` (asıl kopya). Betikler de orada (`temizle.py`, `wa_ekle.py`, `hafiza.py`,
   `hafiza_veri.py`); ilk düzenin yedeği `kaynak/` klasöründe. Kişilerin hepsi Sadık'ın adına girecek.
-- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama, sorular ve yanıtlar), Kişiler (4.047; tipi, çalıştığı bölge
-  ve tür, kim tanıştırdı), Geçmiş ilgiler (254), Talepler (5), Aranacaklar (37), Mülkler (312: 71 satışta, 231 arşiv,
-  10 satıldı; kimden geldi, not tarihi), Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
+- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama, sorular ve yanıtlar), Kontrol listesi (açık sorular tek
+  sayfada: 56 "bu kim?", 9 hatırlanmayan, 67 teyit; Sadık yanıtını sohbette söyler ya da "Yanıtınız" sütununa yazar),
+  Kişiler (4.047; tipi, çalıştığı bölge ve tür, kim tanıştırdı, tanıştıran durumu; "Kontrol" yanıt bekleyenler,
+  "Açıklama" yalnızca bilgi), Geçmiş ilgiler (254), Talepler (5), Aranacaklar (37), Mülkler (312: 71 satışta, 231 arşiv,
+  10 satıldı; kimden geldi, getiren durumu, not tarihi), Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
 - Kurallar (Sadık): bir talep 6 aydan uzun geçerli olmaz (sınır 24.05.2026). Eski arayışlar talep değil "geçmiş ilgi",
   eski yerler "Arşiv" olur (Satal'da pasif: eşleştirmeye girmez, aramada ve getirenin kartında görünür).
 - Varsayımlar: alım gücü sütunu boş (notlarda güncel rakam yok, tahmin yazılmadı; Satal'da bu kişiler "parası
@@ -60,17 +88,24 @@ Satal'a eklenenler (şema: `crm/migrations/002_hafiza.sql`):
   yok. Sadık'ın başvurusu için kitapta durur; Satal açılınca her danışman kendi kaydını kendi hesabına girer. Sadık'ın
   ve Recep Bey'in grupta paylaştığı önemli yerler Mülkler sayfasına da işlendi. Ofis içi özel sohbet aktarılmadı.
 - Yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma"). 25.11.2026'da gerçek kitapla
-  yerel deneme veritabanında denendi (sonra silindi): 4.040 kişi, 303 mülk (70'i aktif), 226 geçmiş ilgi, 34
-  hatırlatma, 5 talep; 109 "kim tanıştırdı" ve 110 "kimden geldi" bağlantısı; 47 satır bilerek alınmadı; ikinci
-  yüklemede hiçbir şey çift yazılmadı. (Sayılar Sadık'ın ilk yanıtları işlendikten sonraki denemeden.)
+  yerel deneme veritabanında denendi (sonra silindi): 4.040 kişi, 304 mülk, 235 geçmiş ilgi, 34 hatırlatma, 5 talep;
+  109 "kim tanıştırdı" bağlantısı; kontrol listesine 56 "bu kim?" sorusu (ayrıca 9 hatırlanmayan) ve 62 teyit notu;
+  37 satır bilerek alınmadı. İkinci yüklemede hiçbir şey çift yazılmadı; listeden yanıtlanan sorular üçüncü yüklemede
+  geri açılmadı. (Sayılar Sadık'ın altı yanıtı işlendikten sonraki denemeden.)
 - Sorular: Okuyun sayfasında 16 soru vardı (notlarda yalnızca adıyla geçen kişiler kim, bazı yerler hangi ilçede).
-  İlk üçünü Sadık 25.11.2026'da yanıtladı; kitaba işlendi (iki kişi rehberdeki kayıtlarına bağlandı, biri belirsiz
-  kaldı ve yalnızca adıyla duruyor). Yanıtlar Okuyun sayfasında "Yanıtladıklarınız" başlığında, betikte
-  `hafiza_veri.py` → `YANITLAR`. Yanıt gelince: `hafiza_veri.py` düzeltilir, `hafiza.py` yeniden çalıştırılır
-  (girdi `kaynak/` klasöründeki ilk düzen), eski ve yeni kitap hücre hücre karşılaştırılır, yükleme yeniden denenir.
-- Bekleyen: Okuyun sayfasındaki 13 soru (4–16 numaralı). 24 WhatsApp sohbetinin 13'ünde telefon numarası yok.
+  Altısını Sadık 25.11.2026'da yanıtladı (1, 2, 3, 4, 9, 12); kitaba işlendi: iki kişi rehberdeki kayıtlarına bağlandı,
+  bir mahallenin ilçesi ve ofis grubundaki bir takma adın kime ait olduğu netleşti, iki adı hatırlamadı (bunlar
+  "Bilinmiyor" diye işaretlendi, yalnızca adlarıyla duruyor). Yanıtlar Okuyun sayfasında "Yanıtladıklarınız"
+  başlığında, betikte `hafiza_veri.py` → `YANITLAR`. Yanıt gelince: `hafiza_veri.py` düzeltilir, `hafiza.py` yeniden
+  çalıştırılır (girdi `kaynak/` klasöründeki ilk düzen), eski ve yeni kitap hücre hücre karşılaştırılır, yükleme
+  yeniden denenir.
+- Bekleyen: Okuyun sayfasındaki 10 soru (5, 6, 7, 8, 10, 11, 13, 14, 15, 16); Sadık'a sohbette üçer üçer sorulur.
+  24 WhatsApp sohbetinin 13'ünde telefon numarası yok.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
+- Unutturma (25.11.2026): Sadık'ın notunda getiren ya da tanıştıran olarak geçen bir ad rehberde bulunamıyorsa o gün
+  kendisine sorulur ve yanıtı kayda işlenir. Tahmin edilen bilgi sessizce kesin gibi yazılmaz; "Kontrol" olarak
+  işaretlenir ki Sadık sonradan tek tek bakabilsin.
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
 - Taslak onaylanmadan kuruluma başlanmaz. Şu an taslak aşamasındayız: kullanıcının aklına gelenler toparlanır,
   tekrar tekrar iş yapılmaz.

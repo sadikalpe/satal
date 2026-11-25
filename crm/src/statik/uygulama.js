@@ -208,6 +208,8 @@
         if (!liste.length) { const li = document.createElement("li"); li.className = "soluk"; li.textContent = "Rehberinizde bulunamadı."; sonuc.append(li); }
       } catch { /* bağlantı yok */ }
     });
+    // Arama kutusunda Enter formu göndermesin: kişi seçilmeden kayıt yarım gitmesin
+    ara.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
     $(".kisi-degistir", kap)?.addEventListener("click", () => { sec("", ""); ara.focus(); });
   }
 

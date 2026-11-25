@@ -46,18 +46,25 @@ Kitaptan okunan sayfalar ve Satal'daki karşılıkları:
 
 | Sayfa | Satal'da |
 |---|---|
-| Kişiler | Kişiler: tipi (yatırımcı / al-satçı / olursa alır), çalıştığı bölge ve tür, alım gücü, kim tanıştırdı |
+| Kişiler | Kişiler: tipi (yatırımcı / al-satçı / olursa alır), çalıştığı bölge ve tür, alım gücü, kim tanıştırdı, tanıştıran durumu |
 | Geçmiş ilgiler | Kişinin görüşme geçmişi (tarihi bilinmeyebilir ya da yalnızca yıl olabilir). Talep değildir. |
 | Talepler | Talepler. Kitaptaki tarih talebin söylendiği gün sayılır; "hâlâ arıyor mu?" ona göre sorulur. |
 | Aranacaklar | Geri arama hatırlatması; "Bugün kimi aramalıyım?" listesine düşer. |
-| Mülkler | Mülkler. Satışta → aktif, Arşiv → pasif (eşleştirmeye girmez), Satıldı → satıldı; kimden geldiği. |
+| Mülkler | Mülkler. Satışta → aktif, Arşiv → pasif (eşleştirmeye girmez), Satıldı → satıldı; kimden geldiği, getiren durumu. |
 
-Öbür sayfalar (Okuyun, Ofis grubu, Keep notları, WhatsApp…) okunmaz. "Aktar" sütununda "Hayır" yazan satır girmez.
-Sütun düzeni: `src/lib/aktarim-hazirla.js`.
+Öbür sayfalar (Okuyun, Kontrol listesi, Ofis grubu, Keep notları, WhatsApp…) okunmaz. "Aktar" sütununda "Hayır" yazan
+satır girmez. Sütun düzeni: `src/lib/aktarim-hazirla.js`.
+
+Kitaptaki açık sorular Satal'da danışmanın **Kontrol listesi**ne (`/kontrol`) düşer:
+- Kişiler, Geçmiş ilgiler ve Mülkler sayfasındaki "Kontrol" sütunu (bir varsayım ya da eksik) kaydın teyit notu olur;
+  danışman "Kontrol ettim" diyene ya da düzeltene kadar listede bekler.
+- "Kim tanıştırdı" ya da "Kimden geldi" yalnızca adla yazılıysa (Kişi No yoksa) "Bu kim?" sorusu olur. "Tanıştıran
+  durumu" / "Getiren durumu" sütununa "Rehberde yok" yazılan sorulmaz; "Bilinmiyor" yazılan "hatırlanmayanlar"da durur.
 
 Dosya iki kez yüklenirse hiçbir şey çift yazılmaz: rehberde zaten olan numara yeniden eklenmez (kayıtlı kişinin
 yalnızca boş alanları dolar; Satal'da elle yazılanın üstüne yazılmaz), aynı talep, mülk, geçmiş ilgi ve hatırlatma
-yeniden açılmaz. Danışmanın Satal'da sildiği bir kişi ise yeniden yüklemede yeni kayıt olarak açılır.
+yeniden açılmaz. Satal'da yanıtlanan kontrol sorusu da geri gelmez. Danışmanın Satal'da sildiği bir kişi ise yeniden
+yüklemede yeni kayıt olarak açılır.
 
 25.11.2026'da gerçek kitapla yerel bir deneme veritabanında denendi: 4.040 kişi, 303 mülk, 226 geçmiş ilgi,
 34 hatırlatma ve 5 talep 5 saniyede girdi; ikinci yüklemede hiçbir şey eklenmedi.

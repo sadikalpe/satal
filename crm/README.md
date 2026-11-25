@@ -1,7 +1,8 @@
 # Satal CRM (yeni sürüm)
 
 STA Gayrimenkul danışmanları için müşteri takibi: rehber, talepler, mülkler, iki yönlü eşleştirme (0–100 puan),
-kim tanıştırdı / kimden geldi bağlantıları, her şeyde arama, WhatsApp mesajı hazırlama, yönetici ekranları.
+kim tanıştırdı / kimden geldi bağlantıları, kontrol listesi (unutulmasın diye açık kalan sorular), her şeyde arama,
+WhatsApp mesajı hazırlama, yönetici ekranları.
 
 - **Teknoloji:** Node.js 22 (Fastify), PostgreSQL 16, sunucuda üretilen HTML, az miktarda tarayıcı betiği.
 - **Gizlilik:** her danışman yalnızca kendi kayıtlarını görür. Bu kural hem uygulamada hem veritabanında
@@ -21,7 +22,7 @@ node scripts/aktar.js dosya.xlsx --danisman <e-posta> [--yaz]   # aktarım çal�
 ## Klasörler
 - `migrations/` veritabanı şeması ve gizlilik kuralları
 - `data/konum/` il, ilçe, mahalle ve komşuluk verisi (kaynaklar: `data/konum/KAYNAK.md`)
-- `src/alan/` kategoriler, eşleştirme ve puanlama, mesaj şablonları
+- `src/alan/` kategoriler, eşleştirme ve puanlama, mesaj şablonları, kontrol listesinde ad öbekleme
 - `src/servis/` eşleşme hesabı, silme, dosya, toplu aktarım, zamanlanmış işler (kur, gece hesabı, temizlik)
 - `src/rotalar/` ekranlar · `src/gorunum/` ortak görünüm parçaları · `src/statik/` stil ve betik
 - `test/` birim ve uçtan uca testler

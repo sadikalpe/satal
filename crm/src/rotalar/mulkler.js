@@ -10,6 +10,9 @@ import { konumYukle, kurAl, kaydet, KullaniciHatasi, kapsamOku, danismanlarAl, y
 import { mulkIcinHesapla } from "../servis/eslesme.js";
 import { mulkunAlicilari, talepsizAdaylar } from "../servis/liste.js";
 import { mulkSil } from "../servis/silme.js";
+import { adaylariAl } from "../servis/kontrol.js";
+import { kimKutusu, teyitKutusu } from "../gorunum/kontrol.js";
+import { BAG_DURUMU } from "../alan/kontrol.js";
 import { numaraCakismasi } from "./kisiler.js";
 import { metin, dizi, sayi, secim, uuidMi, evetHayir, isaretli } from "../lib/form.js";
 import { telefonNorm, paraYaz, sayiYaz, tarihYaz } from "../lib/metin.js";
@@ -86,11 +89,13 @@ function mulkFormu(req, konum, m, malik, kaynak = null) {
     </fieldset>
     ${alan({ ad: "baslik", etiket: "Kısa başlık (isteğe bağlı)", deger: m.baslik, yer: "örn. Deniz manzaralı köşe daire", ek: 'maxlength="120"' })}
     ${alan({ ad: "notlar", etiket: "Notlar (yalnızca siz görürsünüz)", tip: "textarea", deger: m.notlar, ek: 'maxlength="5000"' })}
+    ${m.kontrol_notu ? html`<div class="sor-kutu"><p><b>Kontrol edilecek:</b> ${m.kontrol_notu}</p><label class="secenek"><input type="checkbox" name="kontrol_tamam" value="1"> Kontrol ettim</label></div>` : ""}
     <script type="application/json" id="kategori-agaci">${jsonGom(KATEGORILER.map((k) => ({ kod: k.kod, turler: k.turler.map((t) => ({ kod: t.kod, ad: t.ad })) })))}</script>
     <button class="dugme genis">${yeni ? "Mülkü kaydet ve alıcıları göster" : "Değişiklikleri kaydet"}</button>
   </form>`;
 }
 
+const GETIREN_SORUSU = " Getireni rehberinizden seçmediniz; kim olduğunu aşağıdan seçin.";
 async function mulkKaydet(req, mevcut) {
   const f = req.form, ben = req.kullanici.id, konum = await konumYukle();
   const kat = kategori(f.kategori) ? f.kategori : null;
@@ -118,9 +123,12 @@ async function mulkKaydet(req, mevcut) {
       } else throw new KullaniciHatasi("Mülk sahibini seçin ya da “Ofis mülkü” kutusunu işaretleyin.");
     }
     const kur = (await kurAl(q))?.usd_try;
+    // "Bu kim?" yanıtı (rehberde yok / hatırlamıyorum) getiren notu değişmedikçe korunur; not değişirse ya da kişi seçilirse yeniden sorulur
+    const kaynakNotu = metin(f.kaynak_notu, 300);
+    const kaynakDurumu = !kaynakId && kaynakNotu && mevcut && mevcut.kaynak_notu === kaynakNotu && !mevcut.kaynak_kisi_id ? mevcut.kaynak_durumu : null;
     const d = [malik, ofis, secim(f.islem, ["satilik", "kiralik"], "satilik"), kat, tur, metin(f.baslik, 120), yer.il_id, yer.ilce_id, yer.mahalle_id, metin(f.konum_notu, 300), metin(f.ada, 20), metin(f.parsel, 20),
       fiyat, para, JSON.stringify(ozellikleriOku(kat, tur, f)), deger, deger == null ? null : secim(f.tahmini_deger_para, ["TRY", "USD"], para), sayi(f.tahmini_satis_ay), sayi(f.tahmini_kira_tutar), isaretli(f.acil), isaretli(f.pazarlik_payi), metin(f.notlar, 5000),
-      kaynakId, metin(f.kaynak_notu, 300)];
+      kaynakId, kaynakNotu, kaynakDurumu];
     let id = mevcut?.id, dustu = false;
     try {
       if (id) {
@@ -128,11 +136,12 @@ async function mulkKaydet(req, mevcut) {
         dustu = eski != null && yeniF != null && yeniF < eski * 0.995;
         const degisti = mevcut.fiyat_tutar !== fiyat || mevcut.fiyat_para !== para;
         await q(`update mulkler set malik_kisi_id=$2, ofis_mulku=$3, islem=$4, kategori=$5, alt_tur=$6, baslik=$7, il_id=$8, ilce_id=$9, mahalle_id=$10, konum_notu=$11, ada=$12, parsel=$13, fiyat_tutar=$14, fiyat_para=$15, ozellikler=$16,
-          tahmini_deger_tutar=$17, tahmini_deger_para=$18, tahmini_satis_ay=$19, tahmini_kira_tutar=$20, acil=$21, pazarlik_payi=$22, notlar=$23, kaynak_kisi_id=$24, kaynak_notu=$25, guncelleme_at=now(),
-          onceki_fiyat_tutar = case when $26 then fiyat_tutar else onceki_fiyat_tutar end, fiyat_degisim_at = case when $26 then now() else fiyat_degisim_at end where id=$1`, [id, ...d, degisti && mevcut.fiyat_tutar != null]);
+          tahmini_deger_tutar=$17, tahmini_deger_para=$18, tahmini_satis_ay=$19, tahmini_kira_tutar=$20, acil=$21, pazarlik_payi=$22, notlar=$23, kaynak_kisi_id=$24, kaynak_notu=$25, kaynak_durumu=$26, guncelleme_at=now(),
+          onceki_fiyat_tutar = case when $27 then fiyat_tutar else onceki_fiyat_tutar end, fiyat_degisim_at = case when $27 then now() else fiyat_degisim_at end,
+          kontrol_notu = case when $28 then '' else kontrol_notu end where id=$1`, [id, ...d, degisti && mevcut.fiyat_tutar != null, isaretli(f.kontrol_tamam)]);
       } else {
         id = (await q.bir(`insert into mulkler (sahip_id, malik_kisi_id, ofis_mulku, islem, kategori, alt_tur, baslik, il_id, ilce_id, mahalle_id, konum_notu, ada, parsel, fiyat_tutar, fiyat_para, ozellikler,
-          tahmini_deger_tutar, tahmini_deger_para, tahmini_satis_ay, tahmini_kira_tutar, acil, pazarlik_payi, notlar, kaynak_kisi_id, kaynak_notu) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25) returning id`, [ben, ...d])).id;
+          tahmini_deger_tutar, tahmini_deger_para, tahmini_satis_ay, tahmini_kira_tutar, acil, pazarlik_payi, notlar, kaynak_kisi_id, kaynak_notu, kaynak_durumu) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) returning id`, [ben, ...d])).id;
       }
     } catch (e) {
       if (e.code === "42501") throw new KullaniciHatasi("Mülk sahibi olarak yalnızca kendi rehberinizdeki bir kişiyi seçebilirsiniz.");
@@ -140,7 +149,8 @@ async function mulkKaydet(req, mevcut) {
     }
     await kaydet(q, req, mevcut ? "mulk_degisti" : "mulk_eklendi", "mulk", id, dustu ? { fiyat_dustu: true } : {});
     const sayiE = await mulkIcinHesapla(q, id, { fiyatDustu: dustu });
-    return { id, sayi: sayiE };
+    // sor: getiren yalnızca adla yazıldı ve henüz yanıtlanmadı; kart açılınca "bu kim?" diye sorulur
+    return { id, sayi: sayiE, sor: !kaynakId && !!kaynakNotu && !kaynakDurumu };
   });
 }
 
@@ -190,8 +200,8 @@ export default async function (app) {
     return reply.sayfa(sayfa(req, { baslik: "Yeni mülk", geri: { yol: "/mulkler", ad: "Mülkler" }, icerik: html`<h1>Yeni mülk</h1>${mulkFormu(req, konum, m, malik, kaynak)}` }));
   });
   app.post("/mulkler", async (req, reply) => {
-    const { id, sayi: n } = await mulkKaydet(req, null);
-    return reply.bildir(n ? `Mülk kaydedildi. ${n} eşleşme bulundu.` : "Mülk kaydedildi.").redirect("/mulkler/" + id);
+    const { id, sayi: n, sor } = await mulkKaydet(req, null);
+    return reply.bildir(`Mülk kaydedildi.${n ? ` ${n} eşleşme bulundu.` : ""}${sor ? GETIREN_SORUSU : ""}`).redirect("/mulkler/" + id);
   });
   const kendiMulku = (m, req) => { if (m.sahip_id !== req.kullanici.id || m.silindi_at) throw new KullaniciHatasi("Bu kaydı yalnızca kaydın sahibi değiştirebilir.", 403); return m; };
   app.get("/mulkler/:id/duzenle", async (req, reply) => {
@@ -204,8 +214,8 @@ export default async function (app) {
   });
   app.post("/mulkler/:id", async (req, reply) => {
     const m = kendiMulku(await islem(req.kullanici, (q) => mulkGetir(q, req.params.id)), req);
-    await mulkKaydet(req, m);
-    return reply.bildir("Değişiklikler kaydedildi.").redirect("/mulkler/" + m.id);
+    const { sor } = await mulkKaydet(req, m);
+    return reply.bildir("Değişiklikler kaydedildi." + (sor ? GETIREN_SORUSU : "")).redirect("/mulkler/" + m.id);
   });
   app.post("/mulkler/:id/durum", async (req, reply) => {
     const durum = secim(req.form.durum, Object.keys(MULK_DURUMU));
@@ -244,6 +254,8 @@ export default async function (app) {
         m, benim, alicilar,
         malik: m.malik_kisi_id ? await q.bir("select id, ad, mesaj_istemiyor from kisiler where id = $1", [m.malik_kisi_id]) : null,
         kaynak: m.kaynak_kisi_id ? await q.bir("select id, ad from kisiler where id = $1", [m.kaynak_kisi_id]) : null,
+        // Getiren yazılı ama rehberden seçilmemişse (ve "rehberde yok" denmemişse) rehberden adı benzeyenler önerilir
+        kimAdaylari: benim && m.kaynak_notu && !m.kaynak_kisi_id && m.kaynak_durumu !== "rehberde_yok" ? await adaylariAl(q, ben, m.kaynak_notu) : null,
         adaylar: benim && ["aktif", "opsiyonlu"].includes(m.durum) ? await talepsizAdaylar(q, m, ben, alicilar.map((a) => a.kisi_id)) : [],
         ekip: yoneticiMi(req.kullanici) ? await mulkunAlicilari(q, m, "ekip") : [],
         belgeler: await q("select * from belgeler where mulk_id = $1 order by olusturma_at desc", [m.id]),
@@ -262,13 +274,15 @@ export default async function (app) {
           <dt>Tür</dt><dd>${kategoriAdi(m.kategori)} · ${altTurAdi(m.kategori, m.alt_tur)}</dd>
           <dt>Yer</dt><dd>${[konum.ilAdi(m.il_id), konum.ilceAdi(m.ilce_id), konum.mahalleAdi(m.mahalle_id)].filter(Boolean).join(" / ")}${m.konum_notu ? " · " + m.konum_notu : ""}</dd>
           <dt>Sahibi</dt><dd>${m.ofis_mulku ? "Ofis mülkü" : v.malik ? html`<a href="/kisiler/${v.malik.id}">${v.malik.ad}</a>` : "—"}</dd>
-          ${v.kaynak || m.kaynak_notu ? html`<dt>Kimden geldi</dt><dd>${kaynakYaz(v.kaynak, m.kaynak_notu)}</dd>` : ""}
+          ${v.kaynak || m.kaynak_notu ? html`<dt>Kimden geldi</dt><dd>${kaynakYaz(v.kaynak, m.kaynak_notu)}${!m.kaynak_kisi_id && m.kaynak_durumu ? html` <span class="etiket-k${m.kaynak_durumu === "bilinmiyor" ? " sari" : ""}">${BAG_DURUMU[m.kaynak_durumu]}</span>` : ""}</dd>` : ""}
           ${ozellikler.map(([ad, d]) => html`<dt>${ad}</dt><dd>${d}</dd>`)}
           ${m.tahmini_deger_tutar != null ? html`<dt>Tahmini değer</dt><dd>${paraYaz(m.tahmini_deger_tutar, m.tahmini_deger_para || m.fiyat_para)} <small>(danışman tahmini)</small></dd>` : ""}
           ${m.tahmini_satis_ay != null ? html`<dt>Tahmini satış süresi</dt><dd>${sayiYaz(m.tahmini_satis_ay, 1)} ay <small>(danışman tahmini)</small></dd>` : ""}
           ${m.tahmini_kira_tutar != null ? html`<dt>Tahmini kira</dt><dd>${paraYaz(m.tahmini_kira_tutar, "TRY")} / ay <small>(danışman tahmini)</small></dd>` : ""}
           ${m.notlar && benim ? html`<dt>Notlar</dt><dd>${satirli(m.notlar)}</dd>` : ""}
         </dl>
+        ${v.kimAdaylari ? kimKutusu(req, { ne: "Getiren", kayit: "m:" + m.id, notu: m.kaynak_notu, durum: m.kaynak_durumu, adaylar: v.kimAdaylari, geri: "/mulkler/" + m.id }) : ""}
+        ${benim ? teyitKutusu(req, { kayit: "m:" + m.id, notu: m.kontrol_notu, geri: "/mulkler/" + m.id }) : ""}
         ${m.ada || m.parsel ? html`<p><b>Ada / parsel:</b> ${m.ada || "—"} / ${m.parsel || "—"} <button type="button" class="dugme sade kucuk" data-kopyala="${m.ada} / ${m.parsel}">Kopyala</button></p>` : ""}
         <div class="dugmeler"><span class="soluk">Resmi kaynaklar ${ampul("parsel")}</span>
           <a class="dugme sade kucuk" href="https://parselsorgu.tkgm.gov.tr/" target="_blank" rel="noopener noreferrer">TKGM Parsel Sorgu</a>

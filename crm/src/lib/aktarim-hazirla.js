@@ -1,6 +1,9 @@
 // Toplu aktarım: aktarım çalışma kitabındaki satırları Satal kayıtlarına çevirir.
 // Okunan sayfalar: Kişiler, Geçmiş ilgiler, Talepler, Aranacaklar, Mülkler. Kitaptaki öbür sayfalar (Okuyun, Ofis grubu,
 // Keep notları, WhatsApp…) yalnızca danışmanın kendi başvurusu içindir; okunmaz.
+// Kontrol listesi: Kişiler, Geçmiş ilgiler ve Mülkler sayfasındaki "Kontrol" sütunu kaydın teyit notu olur (danışman
+// "kontrol ettim" diyene kadar listede bekler). "Tanıştıran durumu" (Kişiler) ve "Getiren durumu" (Mülkler) sütununa
+// "Rehberde yok" ya da "Bilinmiyor" yazılırsa adıyla yazılmış kişi için "bu kim?" sorusu yanıtlanmış sayılır.
 // Veritabanına dokunmaz; ne ekleneceğini, hangi satırların neden alınmadığını ve hangi bilginin eksik girdiğini döndürür.
 // Yazma işini src/servis/aktarim.js yapar.
 import { norm, telefonNorm, sayiOku } from "./metin.js";
@@ -25,6 +28,7 @@ const parcala = (v) => String(v ?? "").split(/[;\n]/).map((x) => x.trim()).filte
 const HITAP = { bey: "bey", hanim: "hanim", abi: "abi", abla: "abla" };
 const YATIRIMCI = { yatirimci: "yatirimci", "al-satci": "al_satci", "al satci": "al_satci", alsatci: "al_satci", "olursa alir": "olursa_alir", "olursa-alir": "olursa_alir" };
 const SONUC = { ilgilendi: "ilgilendi", "teklif verdi": "teklif_verdi", aldi: "aldi", olmadi: "olmadi" };
+const BAG_DURUMU = { "rehberde yok": "rehberde_yok", bilinmiyor: "bilinmiyor", hatirlamiyorum: "bilinmiyor", hatirlanmiyor: "bilinmiyor" };
 // Kitaptaki "Durum": Satışta → aktif, Arşiv → pasif (eşleştirmeye girmez), Satıldı → satıldı
 const mulkDurumu = (v) => {
   const n = norm(v);
@@ -133,6 +137,13 @@ export function aktarimHazirla(sayfalar, { konum, varsayilanDanisman, varsayilan
   const alinmayan = [], uyarilar = [];
   const atla = (s, o, neden) => alinmayan.push({ sayfa: s, satir: o._satir, ad: alan(o, "ad soyad"), neden });
   const uyar = (s, o, neden) => uyarilar.push({ sayfa: s, satir: o._satir, ad: alan(o, "ad soyad"), neden });
+  const kontrolNotu = (o) => String(alan(o, "kontrol")).replace(/\s+/g, " ").slice(0, 500);
+  // "Bu kim?" yanıtı. Yalnızca ad yazılıysa ve rehberdeki bir kişiye bağlanmıyorsa anlamlıdır; öbür durumda yok sayılır.
+  const bagDurumu = (s, o, baslik) => {
+    const v = alan(o, baslik), d = BAG_DURUMU[norm(v)] || null;
+    if (v && !d) uyar(s, o, `“${baslik}” sütunundaki “${v}” tanınmadı (Rehberde yok ya da Bilinmiyor yazın); boş bırakıldı`);
+    return d;
+  };
 
   // "Menderes" · "Menderes; Buca" · "Aydın/Didim" (il/ilçe) · "Torbalı/Çapak" (ilçe/mahalle) → [{ ilce, mahalle }]
   const bolgeleriCoz = (s, o, deger) => {
@@ -203,7 +214,7 @@ export function aktarimHazirla(sayfalar, { konum, varsayilanDanisman, varsayilan
       sirket: String(alan(o, "sirket")).slice(0, 200),
       referans_notu: String(alan(o, "kim tanistirdi")).slice(0, 300),
       referans_no: String(alan(o, "tanistiran kisi no") || ""),
-      referans: null,
+      referans: null, referans_durumu: bagDurumu("Kişiler", o, "Tanıştıran durumu"), kontrol_notu: kontrolNotu(o),
       notlar: [String(alan(o, "notlar")), ek.join(" · ")].filter(Boolean).join("\n\n").slice(0, 10000),
     };
     if (!tip && (alan(o, "calisma bolgeleri") || alan(o, "calisma turleri"))) uyar("Kişiler", o, "çalışma bölgesi ya da türü yazılmış ama yatırımcı tipi boş; çalışma alanı alınmadı");
@@ -221,6 +232,7 @@ export function aktarimHazirla(sayfalar, { konum, varsayilanDanisman, varsayilan
     else if (r.danisman !== k.danisman) uyar("Kişiler", o, "tanıştıran başka bir danışmanın rehberinde; yalnızca notu yazıldı");
     else k.referans = r;
   }
+  for (const k of kisiler) if (k.referans || !k.referans_notu) k.referans_durumu = null;
 
   const kisiyiBul = (s, o) => {
     const no = String(alan(o, "kisi no") || "");
@@ -265,6 +277,7 @@ export function aktarimHazirla(sayfalar, { konum, varsayilanDanisman, varsayilan
       islem: alan(o, "satilik") ? islem(o) : null, kategori: kt.kat?.kod || null, alt_tur: kt.tur?.kod || null,
       ilce_id: yer?.ilce_id || null, mahalle_id: yer?.mahalle_id || null, sonuc,
       notu: [not, od && !not.includes(od) ? "Oda: " + od : "", yer?.konum_notu ? "Mahalle: " + yer.konum_notu : ""].filter(Boolean).join("\n").slice(0, 2000),
+      kontrol_notu: kontrolNotu(o),
     });
   }
 
@@ -347,12 +360,13 @@ export function aktarimHazirla(sayfalar, { konum, varsayilanDanisman, varsayilan
       else kaynak = r;
     }
     const t = tarih("Mülkler", o, "not tarihi");
+    const kaynakNotu = String(alan(o, "kimden geldi")).slice(0, 300), kaynakDurumu = bagDurumu("Mülkler", o, "Getiren durumu");
     mulkler.push({
       satir: o._satir, kisi: k, danisman, ofis_mulku: ofis, islem: islem(o), kategori: kt.kat.kod, alt_tur: kt.tur.kod,
       baslik: String(alan(o, "baslik")).slice(0, 120), ada: String(alan(o, "ada")).slice(0, 20), parsel: String(alan(o, "parsel")).slice(0, 20),
       il_id: yer.il_id, ilce_id: yer.ilce_id, mahalle_id: yer.mahalle_id, konum_notu: yer.konum_notu.slice(0, 300),
       fiyat, fiyat_para: para, durum, ozellikler,
-      kaynak, kaynak_notu: String(alan(o, "kimden geldi")).slice(0, 300),
+      kaynak, kaynak_notu: kaynakNotu, kaynak_durumu: kaynak || !kaynakNotu ? null : kaynakDurumu, kontrol_notu: kontrolNotu(o),
       // Yerin size geldiği gün (notun tarihi): listede sıralama buna göre olur. Yalnızca yıl yazılıysa o yılın başı sayılır.
       tarih: t.tarih,
       notlar: [String(alan(o, "nottan")), ...notEki].filter(Boolean).join("\n").slice(0, 5000),

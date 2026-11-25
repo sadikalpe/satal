@@ -84,6 +84,10 @@ await sistem(async (q) => {
   await q("insert into hatirlatmalar (kisi_id, sahip_id, tarih, notu) values ($1, $2, current_date, 'Kredi sonucunu soracak')", [zeynep, ayse]);
   await q("insert into gorusmeler (kisi_id, sahip_id, tarih, tur, ilce_id, kategori, sonuc, notu) values ($1, $2, current_date - 30, 'gorusme', $3, 'konut', 'ilgilendi', 'Bostanlı''da iki daire gezdik.')", [ahmet, ayse, karsiyaka]);
   await q("insert into mesajlar (sahip_id, kisi_id, mulk_id, yon, metin, gonderildi_at) values ($1, $2, $3, 'aliciya', 'Örnek mesaj', now() - interval '6 days')", [ayse, yatirimci, m1]);
+  // Kontrol listesi örnekleri: getireni / tanıştıranı yalnızca adla yazılmış kayıtlar ("bu kim?") ve teyit bekleyen bir varsayım
+  await q("update mulkler set kaynak_notu = 'Emre Bey' where sahip_id = $1 and ofis_mulku", [ayse]);
+  await q("update kisiler set referans_notu = 'Emre Bey''in arkadaşı' where id = any($1::uuid[])", [[can, selin]]);
+  await q("update gorusmeler set kontrol_notu = 'Görüşmenin Karşıyaka''da geçtiği varsayıldı.' where sahip_id = $1", [ayse]);
   console.log("eşleşme:", await hepsiniHesapla(q));
 });
 await kapat();
