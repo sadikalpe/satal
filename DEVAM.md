@@ -1,8 +1,8 @@
 # Kaldığımız yer (25.11.2026)
 
-**Şu an:** Satal'a hafıza eklemeleri ve yeni aktarım PR 6'da (dal `claude/project-thread-zypzh0`), birleştirilmeyi
-bekliyor. Sıradaki adımlar: (1) Sadık'ın aktarım kitabındaki sorulara yanıtları kitaba işlenir, (2) PR 6 birleştirilir,
-(3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
+**Şu an:** Satal'a hafıza eklemeleri ve yeni aktarım PR 6 ile ana kopyaya girdi (25.11.2026, Sadık onayladı).
+Sıradaki adımlar: (1) Sadık'ın aktarım kitabındaki kalan sorulara yanıtları geldikçe kitaba işlenir, (2) Halis Bey'den
+sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
 
 ## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
 Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
@@ -48,7 +48,7 @@ Satal'a eklenenler (şema: `crm/migrations/002_hafiza.sql`):
   bir "aktarım çalışma kitabı"nda; gerçek kişi verisi içerdiği için depoda DEĞİL, proje dosyalarında:
   `satal-aktarim/satal-aktarim.xlsx` (asıl kopya). Betikler de orada (`temizle.py`, `wa_ekle.py`, `hafiza.py`,
   `hafiza_veri.py`); ilk düzenin yedeği `kaynak/` klasöründe. Kişilerin hepsi Sadık'ın adına girecek.
-- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama + Sadık'a 16 soru), Kişiler (4.047; tipi, çalıştığı bölge
+- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama, sorular ve yanıtlar), Kişiler (4.047; tipi, çalıştığı bölge
   ve tür, kim tanıştırdı), Geçmiş ilgiler (254), Talepler (5), Aranacaklar (37), Mülkler (312: 71 satışta, 231 arşiv,
   10 satıldı; kimden geldi, not tarihi), Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
 - Kurallar (Sadık): bir talep 6 aydan uzun geçerli olmaz (sınır 24.05.2026). Eski arayışlar talep değil "geçmiş ilgi",
@@ -61,10 +61,14 @@ Satal'a eklenenler (şema: `crm/migrations/002_hafiza.sql`):
   ve Recep Bey'in grupta paylaştığı önemli yerler Mülkler sayfasına da işlendi. Ofis içi özel sohbet aktarılmadı.
 - Yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma"). 25.11.2026'da gerçek kitapla
   yerel deneme veritabanında denendi (sonra silindi): 4.040 kişi, 303 mülk (70'i aktif), 226 geçmiş ilgi, 34
-  hatırlatma, 5 talep; 101 "kim tanıştırdı" ve 103 "kimden geldi" bağlantısı; 47 satır bilerek alınmadı; ikinci
-  yüklemede hiçbir şey çift yazılmadı.
-- Bekleyen: Okuyun sayfasındaki 16 soru (notlarda yalnızca adıyla geçen kişiler kim, bazı yerler hangi ilçede).
-  24 WhatsApp sohbetinin 13'ünde telefon numarası yok. Yanıt geldikçe kitaba işlenir.
+  hatırlatma, 5 talep; 109 "kim tanıştırdı" ve 110 "kimden geldi" bağlantısı; 47 satır bilerek alınmadı; ikinci
+  yüklemede hiçbir şey çift yazılmadı. (Sayılar Sadık'ın ilk yanıtları işlendikten sonraki denemeden.)
+- Sorular: Okuyun sayfasında 16 soru vardı (notlarda yalnızca adıyla geçen kişiler kim, bazı yerler hangi ilçede).
+  İlk üçünü Sadık 25.11.2026'da yanıtladı; kitaba işlendi (iki kişi rehberdeki kayıtlarına bağlandı, biri belirsiz
+  kaldı ve yalnızca adıyla duruyor). Yanıtlar Okuyun sayfasında "Yanıtladıklarınız" başlığında, betikte
+  `hafiza_veri.py` → `YANITLAR`. Yanıt gelince: `hafiza_veri.py` düzeltilir, `hafiza.py` yeniden çalıştırılır
+  (girdi `kaynak/` klasöründeki ilk düzen), eski ve yeni kitap hücre hücre karşılaştırılır, yükleme yeniden denenir.
+- Bekleyen: Okuyun sayfasındaki 13 soru (4–16 numaralı). 24 WhatsApp sohbetinin 13'ünde telefon numarası yok.
 
 ## Kalıcı kurallar (kullanıcı söyledi)
 - Halis Bey'e (Pixelibol) ya da başka bir tedarikçiye yazılan hiçbir mesajda ücret SORULMAZ.
