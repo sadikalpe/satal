@@ -384,10 +384,10 @@ export default async function (app) {
 
   // ---------- Dışa aktarma (sistem sahibi) ----------
   const AKTARIM = {
-    kisiler: { ad: "Kişiler", sql: `select k.ad, (select string_agg(t.numara, ' | ') from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as telefonlar, u.ad as danisman, k.potansiyel, k.meslek, k.sirket, k.alim_gucu_tutar, k.alim_gucu_para, k.yatirimci_tipi, k.mesaj_istemiyor, k.son_temas_at, k.olusturma_at, k.silindi_at, k.notlar
-        from kisiler k join kullanicilar u on u.id = k.sahip_id order by u.ad, k.ad` },
-    mulkler: { ad: "Mülkler", sql: `select m.islem, m.kategori, m.alt_tur, m.baslik, i.ad as ilce, h.ad as mahalle, m.ada, m.parsel, m.fiyat_tutar, m.fiyat_para, m.durum, k.ad as malik, u.ad as danisman, m.ozellikler, m.olusturma_at, m.silindi_at, m.notlar
-        from mulkler m join kullanicilar u on u.id = m.sahip_id left join kisiler k on k.id = m.malik_kisi_id left join ilceler i on i.id = m.ilce_id left join mahalleler h on h.id = m.mahalle_id order by u.ad, m.olusturma_at` },
+    kisiler: { ad: "Kişiler", sql: `select k.ad, (select string_agg(t.numara, ' | ') from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as telefonlar, u.ad as danisman, k.potansiyel, k.meslek, k.sirket, k.alim_gucu_tutar, k.alim_gucu_para, k.yatirimci_tipi, k.mesaj_istemiyor, k.son_temas_at, k.olusturma_at, k.silindi_at, r.ad as tanistiran, k.referans_notu, k.notlar
+        from kisiler k join kullanicilar u on u.id = k.sahip_id left join kisiler r on r.id = k.referans_kisi_id order by u.ad, k.ad` },
+    mulkler: { ad: "Mülkler", sql: `select m.islem, m.kategori, m.alt_tur, m.baslik, i.ad as ilce, h.ad as mahalle, m.ada, m.parsel, m.fiyat_tutar, m.fiyat_para, m.durum, k.ad as malik, u.ad as danisman, m.ozellikler, m.olusturma_at, m.silindi_at, g.ad as getiren, m.kaynak_notu, m.notlar
+        from mulkler m join kullanicilar u on u.id = m.sahip_id left join kisiler k on k.id = m.malik_kisi_id left join kisiler g on g.id = m.kaynak_kisi_id left join ilceler i on i.id = m.ilce_id left join mahalleler h on h.id = m.mahalle_id order by u.ad, m.olusturma_at` },
     talepler: { ad: "Talepler", sql: `select k.ad as kisi, u.ad as danisman, t.islem, t.alici_tipi, t.kategoriler, t.alt_turler, t.butce_min_tutar, t.butce_max_tutar, t.butce_para, t.butce_tarih, t.durum, t.kriterler, t.olusturma_at, t.silindi_at, t.notlar
         from talepler t join kullanicilar u on u.id = t.sahip_id join kisiler k on k.id = t.kisi_id order by u.ad, k.ad` },
   };

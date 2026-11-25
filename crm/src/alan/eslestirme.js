@@ -270,7 +270,7 @@ export function sirala(liste) {
 }
 
 // "Talebi yok ama alabilir": açık talebi olmayan ama parası ya da ilgisi olan kişi.
-// kisi: { alim_gucu_usd, potansiyel, yatirimci_tipi, calisma_bolgeleri:[{ilce, mahalle}], calisma_kategorileri:[], gorusme_ilceleri:[ilce_id], aldigi_ilceler:[ilce_id] }
+// kisi: { alim_gucu_usd, potansiyel, yatirimci_tipi (al_satci | yatirimci | olursa_alir), calisma_bolgeleri:[{ilce, mahalle}], calisma_kategorileri:[], gorusme_ilceleri:[ilce_id], aldigi_ilceler:[ilce_id] }
 export function talepsizAday(kisi, mulk, { kur, ayarlar = VARSAYILAN_AYAR }) {
   const fiyat = usd(mulk.fiyat_tutar, mulk.fiyat_para, kur);
   const guc = sayi(kisi.alim_gucu_usd);
@@ -285,7 +285,8 @@ export function talepsizAday(kisi, mulk, { kur, ayarlar = VARSAYILAN_AYAR }) {
     const kat = kisi.calisma_kategorileri || [];
     const bolgeUyar = !bolge.length || bolge.some((b) => b.ilce === mulk.ilce_id && (!b.mahalle || b.mahalle === mulk.mahalle_id));
     const katUyar = !kat.length || kat.includes(mulk.kategori);
-    if (bolgeUyar && katUyar && (bolge.length || kat.length)) nedenler.push(kisi.yatirimci_tipi === "al_satci" ? "al-satçı, çalışma alanı uyuyor" : "yatırımcı, çalışma alanı uyuyor");
+    const TIP = { al_satci: "al-satçı", yatirimci: "yatırımcı", olursa_alir: "olursa alır" };
+    if (bolgeUyar && katUyar && (bolge.length || kat.length)) nedenler.push(`${TIP[kisi.yatirimci_tipi] || "yatırımcı"}, çalışma alanı uyuyor`);
   }
   if (!nedenler.length) return null;
   return { nedenler, para_bilinmiyor: guc == null };

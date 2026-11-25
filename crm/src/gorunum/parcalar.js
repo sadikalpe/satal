@@ -3,13 +3,16 @@ import { html } from "../lib/html.js";
 import { rozet, puanRozeti, danismanEtiketi, csrfAlani } from "./duzen.js";
 import { nitelik } from "../lib/html.js";
 import { kategoriAdi, altTurAdi, aliciTipi, olcutTanimi, alanTanimi } from "../alan/kategoriler.js";
-import { paraKisa, sayiYaz, telefonYaz, ayYilYaz, neKadarOnce } from "../lib/metin.js";
+import { paraKisa, sayiYaz, telefonYaz, ayYilYaz, neKadarOnce, tarihYaz } from "../lib/metin.js";
 
 export const ISLEM_ADI = { satilik: "Satılık", kiralik: "Kiralık" };
 export const MULK_DURUMU = { aktif: "Aktif", opsiyonlu: "Opsiyonlu", satildi: "Satıldı / kiralandı", pasif: "Pasif" };
 export const TALEP_DURUMU = { aktif: "Aktif", beklemede: "Beklemede", kapandi: "Kapandı" };
 export const SONUC_ADI = { ilgilendi: "İlgilendi", teklif_verdi: "Teklif verdi", aldi: "Aldı", olmadi: "Olmadı" };
 export const GORUSME_TURU = { gorusme: "Görüşme", arama: "Arama", mesaj: "Mesaj" };
+// Kişi tipi: al-satçı ve yatırımcı sürekli alır; "olursa alır" aramaz ama iyi bir yer çıkarsa alır
+export const KISI_TIPI = { al_satci: "al-satçı", yatirimci: "yatırımcı", olursa_alir: "olursa alır" };
+export const KISI_TIPI_SECENEKLERI = [{ kod: "", ad: "Hiçbiri" }, { kod: "al_satci", ad: "Al-satçı" }, { kod: "yatirimci", ad: "Yatırımcı" }, { kod: "olursa_alir", ad: "Olursa alır (aramıyor, iyi yer çıkarsa alır)" }];
 export const BELGE_TURU = { tapu: "Tapu", imar: "İmar durumu", plan_notu: "Plan notu", roleve: "Röleve", diger: "Diğer" };
 
 // "Karşıyaka Bostanlı · 3+1 daire · 130 m²"
@@ -60,7 +63,7 @@ export function ozellikDegeri(anahtar, v) {
 
 export function kisiEtiketleri(k) {
   return html`${k.potansiyel ? rozet(k.potansiyel) : ""}
-    ${k.yatirimci_tipi ? html`<span class="etiket-k bilgi">${k.yatirimci_tipi === "al_satci" ? "al-satçı" : "yatırımcı"}</span>` : ""}
+    ${k.yatirimci_tipi ? html`<span class="etiket-k bilgi">${KISI_TIPI[k.yatirimci_tipi] || k.yatirimci_tipi}</span>` : ""}
     ${k.mesaj_istemiyor ? html`<span class="etiket-k uyari">mesaj istemiyor</span>` : ""}
     ${k.silindi_at ? html`<span class="etiket-k uyari">silindi</span>` : ""}`;
 }
@@ -110,6 +113,14 @@ export function eslesmeSatiri(e, { yon, konum, ekDugme = "", danisman = null, se
     </div>
     <div class="yan">${ekDugme}</div>
   </li>`;
+}
+// Görüşmenin tarihi: eski notlardan gelen kayıtlarda gün bilinmeyebilir (yalnızca yıl ya da hiç)
+export const gorusmeTarihi = (g) => (!g.tarih ? "tarihi bilinmiyor" : g.tarih_yaklasik ? String(g.tarih).slice(0, 4) : tarihYaz(g.tarih));
+// "Kim tanıştırdı" / "kimden geldi": rehberdeki kişi görünüyorsa bağlantısı, yanında yazılı not
+export function kaynakYaz(kisi, notu) {
+  if (!kisi && !notu) return "";
+  const ayni = kisi && notu && notu.toLocaleLowerCase("tr").includes(kisi.ad.toLocaleLowerCase("tr"));
+  return html`${kisi ? html`<a href="/kisiler/${kisi.id}">${kisi.ad}</a>` : ""}${notu && !(ayni && notu.length === kisi.ad.length) ? html`${kisi ? " · " : ""}${notu}` : ""}`;
 }
 export const telefonBaglantisi = (numara) => html`<a href="tel:+${numara}">${telefonYaz(numara)}</a>`;
 export const aliciTipiAdi = (kod) => aliciTipi(kod).ad;

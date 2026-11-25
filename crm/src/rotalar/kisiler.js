@@ -5,8 +5,8 @@ import { islem } from "../db.js";
 import { html, nitelik, satirli } from "../lib/html.js";
 import { sayfa, ampul, alan, paraAlani, csrfAlani, bos, danismanEtiketi } from "../gorunum/duzen.js";
 import { konumSecici, konumOku, bolgeSecici, bolgeleriOku } from "../gorunum/konum.js";
-import { kisiEtiketleri, mulkTarifi, talepTarifi, fiyatYaz, telefonBaglantisi, kapsamSecici, sayfalama, kutular, belgeBolumu, GORUSME_TURU, SONUC_ADI, MULK_DURUMU, TALEP_DURUMU, ISLEM_ADI } from "../gorunum/parcalar.js";
-import { KATEGORILER, TALEP_KATEGORILERI, kategori, kategoriAdi } from "../alan/kategoriler.js";
+import { kisiEtiketleri, mulkTarifi, talepTarifi, fiyatYaz, telefonBaglantisi, kapsamSecici, sayfalama, kutular, belgeBolumu, kisiSecici, kaynakYaz, gorusmeTarihi, GORUSME_TURU, SONUC_ADI, MULK_DURUMU, TALEP_DURUMU, ISLEM_ADI, KISI_TIPI, KISI_TIPI_SECENEKLERI } from "../gorunum/parcalar.js";
+import { KATEGORILER, kategori, kategoriAdi, altTurAdi } from "../alan/kategoriler.js";
 import { usd } from "../alan/eslestirme.js";
 import { konumYukle, kurAl, dolaraSabitle, kaydet, KullaniciHatasi, kapsamOku, danismanlarAl, adNormSql } from "../servis/ortak.js";
 import { kisiIcinHesapla } from "../servis/eslesme.js";
@@ -40,7 +40,7 @@ export async function numaraCakismasi(q, sahipId, numaralar, haricKisi = null) {
   if (c) throw new KullaniciHatasi(`${telefonYaz(c.numara)} numarası rehberinizde “${c.ad}” adına zaten kayıtlı.`);
 }
 
-function kisiFormu(req, konum, k, telefonlar) {
+function kisiFormu(req, konum, k, telefonlar, referans = null) {
   const yeni = !k.id;
   return html`<form class="form kart" method="post" action="${yeni ? "/kisiler" : `/kisiler/${k.id}`}" id="kisi-formu">${csrfAlani(req)}
     ${alan({ ad: "ad", etiket: "Ad soyad", deger: k.ad, zorunlu: true, ek: 'maxlength="200" autocomplete="off"' })}
@@ -66,11 +66,15 @@ function kisiFormu(req, konum, k, telefonlar) {
       ${alan({ ad: "meslek", etiket: "Meslek", deger: k.meslek })}
       ${alan({ ad: "sirket", etiket: "Şirket", deger: k.sirket })}
     </div>
-    ${alan({ ad: "yatirimci_tipi", etiket: "Al-satçı / yatırımcı mı?", tip: "select", deger: k.yatirimci_tipi || "", liste: [{ kod: "", ad: "Hayır" }, { kod: "al_satci", ad: "Al-satçı" }, { kod: "yatirimci", ad: "Yatırımcı" }], yardim: "yatirimci" })}
+    ${alan({ ad: "yatirimci_tipi", etiket: "Al-satçı, yatırımcı ya da “olursa alır” mı?", tip: "select", deger: k.yatirimci_tipi || "", liste: KISI_TIPI_SECENEKLERI, yardim: "yatirimci" })}
     <div id="calisma-alani">
       ${bolgeSecici(konum, { ad: "calisma_bolge", bolgeler: k.calisma_bolgeleri || [], etiket: "Çalıştığı bölgeler" })}
       <div class="alan"><span class="etiket">İlgilendiği türler</span>${kutular("calisma_kategorileri", KATEGORILER, k.calisma_kategorileri || [])}</div>
     </div>
+    <fieldset><legend>Kim tanıştırdı? ${ampul("referans")}</legend>
+      ${kisiSecici({ ad: "referans_kisi_id", etiket: "Tanıştıran kişi (rehberinizden)", secili: referans })}
+      ${alan({ ad: "referans_notu", etiket: "Nasıl tanıştınız, yakınlığı ne?", deger: k.referans_notu, yer: "örn. Feride Hanım'ın kuzeni; onun üzerinden aranır", ek: 'maxlength="300"' })}
+    </fieldset>
     <label class="secenek"><input type="checkbox" name="mesaj_istemiyor" value="1"${nitelik("checked", k.mesaj_istemiyor)}> Mülk tanıtım mesajı istemiyor ${ampul("mesaj_istemiyor")}</label>
     ${alan({ ad: "notlar", etiket: "Notlar", tip: "textarea", deger: k.notlar, ek: 'maxlength="5000"' })}
     <button class="dugme genis">${yeni ? "Kişiyi kaydet" : "Değişiklikleri kaydet"}</button>
@@ -84,22 +88,26 @@ async function kisiKaydet(req, mevcut) {
   const telefonlar = telefonlarOku(f);
   if (!telefonlar.length) throw new KullaniciHatasi("En az bir telefon numarası yazın.");
   const konum = await konumYukle();
-  const yatirimci = secim(f.yatirimci_tipi, ["al_satci", "yatirimci"]);
+  const yatirimci = secim(f.yatirimci_tipi, Object.keys(KISI_TIPI));
+  const referansId = uuidMi(f.referans_kisi_id) ? f.referans_kisi_id : null;
+  if (referansId && referansId === mevcut?.id) throw new KullaniciHatasi("Kişi kendisinin tanıştıranı olamaz.");
   const guc = sayi(f.alim_gucu_tutar), gucPara = secim(f.alim_gucu_para, ["TRY", "USD"], "TRY");
   return islem(req.kullanici, async (q) => {
     await numaraCakismasi(q, ben, telefonlar, mevcut?.id);
+    // Tanıştıran kişi danışmanın kendi rehberinden olmalı (başkasının ya da silinmiş bir kişi bağlanamaz)
+    if (referansId && !(await q.bir("select 1 from kisiler where id = $1 and sahip_id = $2 and silindi_at is null", [referansId, ben]))) throw new KullaniciHatasi("Tanıştıran kişi rehberinizde bulunamadı.");
     const sabit = dolaraSabitle({ tutar: guc, para: gucPara, kur: await kurAl(q), onceki: mevcut && { tutar: mevcut.alim_gucu_tutar, para: mevcut.alim_gucu_para, usd: mevcut.alim_gucu_usd, kur: mevcut.alim_gucu_kur, tarih: mevcut.alim_gucu_tarih } });
     const d = [ad, metin(f.hitap_adi, 60), secim(f.hitap_turu, HITAP.map((h) => h.kod), "bey_hanim_yok"), metin(f.hitap_ozel, 80), secim(f.sen_siz, ["sen", "siz"], "siz"), secim(f.dil, ["tr", "en"], "tr"),
       metin(f.meslek, 200), metin(f.sirket, 200), metin(f.notlar, 5000), guc, guc == null ? null : gucPara, sabit.usd, sabit.kur, sabit.tarih, secim(f.potansiyel, ["A", "B", "C"]), isaretli(f.mesaj_istemiyor),
-      yatirimci, JSON.stringify(yatirimci ? bolgeleriOku(konum, f.calisma_bolge) : []), yatirimci ? dizi(f.calisma_kategorileri).filter((x) => kategori(x)) : []];
+      yatirimci, JSON.stringify(yatirimci ? bolgeleriOku(konum, f.calisma_bolge) : []), yatirimci ? dizi(f.calisma_kategorileri).filter((x) => kategori(x)) : [], referansId, metin(f.referans_notu, 300)];
     let id = mevcut?.id;
     if (id) {
       await q(`update kisiler set ad=$2, hitap_adi=$3, hitap_turu=$4, hitap_ozel=$5, sen_siz=$6, dil=$7, meslek=$8, sirket=$9, notlar=$10, alim_gucu_tutar=$11, alim_gucu_para=$12, alim_gucu_usd=$13, alim_gucu_kur=$14, alim_gucu_tarih=$15,
-        potansiyel=$16, mesaj_istemiyor=$17, yatirimci_tipi=$18, calisma_bolgeleri=$19, calisma_kategorileri=$20, guncelleme_at=now() where id=$1`, [id, ...d]);
+        potansiyel=$16, mesaj_istemiyor=$17, yatirimci_tipi=$18, calisma_bolgeleri=$19, calisma_kategorileri=$20, referans_kisi_id=$21, referans_notu=$22, guncelleme_at=now() where id=$1`, [id, ...d]);
       await q("delete from kisi_telefonlari where kisi_id = $1", [id]);
     } else {
       id = (await q.bir(`insert into kisiler (sahip_id, ad, hitap_adi, hitap_turu, hitap_ozel, sen_siz, dil, meslek, sirket, notlar, alim_gucu_tutar, alim_gucu_para, alim_gucu_usd, alim_gucu_kur, alim_gucu_tarih,
-        potansiyel, mesaj_istemiyor, yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) returning id`, [ben, ...d])).id;
+        potansiyel, mesaj_istemiyor, yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri, referans_kisi_id, referans_notu) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) returning id`, [ben, ...d])).id;
     }
     for (const [i, n] of telefonlar.entries()) await q("insert into kisi_telefonlari (kisi_id, sahip_id, numara, ana) values ($1, $2, $3, $4)", [id, ben, n, i === 0]);
     await kaydet(q, req, mevcut ? "kisi_degisti" : "kisi_eklendi", "kisi", id);
@@ -161,7 +169,14 @@ export default async function (app) {
   });
 
   // ---------- Yeni / düzenle ----------
-  app.get("/kisiler/yeni", async (req, reply) => reply.sayfa(sayfa(req, { baslik: "Yeni kişi", geri: { yol: "/kisiler", ad: "Kişiler" }, icerik: html`<h1>Yeni kişi</h1>${kisiFormu(req, await konumYukle(), { ad: metin(req.query.ad, 200) }, [req.query.telefon ? telefonNorm(req.query.telefon) : ""])}` })));
+  // Kişinin kendi rehberindeki bir başka kişi (tanıştıran): yalnızca adı ve kimliği
+  const rehberdenKisi = (q, req, id) => (uuidMi(id) ? q.bir("select id, ad from kisiler where id = $1 and sahip_id = $2 and silindi_at is null", [id, req.kullanici.id]) : null);
+  app.get("/kisiler/yeni", async (req, reply) => {
+    // "?referans=…": bir kişinin kartından "tanıştırdığı kişiyi ekle" denince tanıştıran hazır gelir
+    const referans = await islem(req.kullanici, (q) => rehberdenKisi(q, req, req.query.referans));
+    return reply.sayfa(sayfa(req, { baslik: "Yeni kişi", geri: referans ? { yol: "/kisiler/" + referans.id, ad: referans.ad } : { yol: "/kisiler", ad: "Kişiler" },
+      icerik: html`<h1>Yeni kişi</h1>${kisiFormu(req, await konumYukle(), { ad: metin(req.query.ad, 200) }, [req.query.telefon ? telefonNorm(req.query.telefon) : ""], referans)}` }));
+  });
   app.post("/kisiler", async (req, reply) => {
     const id = await kisiKaydet(req, null);
     return reply.bildir("Kişi kaydedildi.").redirect("/kisiler/" + id);
@@ -169,10 +184,10 @@ export default async function (app) {
   app.get("/kisiler/:id/duzenle", async (req, reply) => {
     const v = await islem(req.kullanici, async (q) => {
       const k = await kisiGetir(q, req.params.id);
-      return { k, telefonlar: (await q("select numara from kisi_telefonlari where kisi_id = $1 and aktif order by ana desc, numara", [k.id])).map((t) => t.numara) };
+      return { k, referans: await rehberdenKisi(q, req, k.referans_kisi_id), telefonlar: (await q("select numara from kisi_telefonlari where kisi_id = $1 and aktif order by ana desc, numara", [k.id])).map((t) => t.numara) };
     });
     if (v.k.sahip_id !== req.kullanici.id || v.k.silindi_at) throw new KullaniciHatasi("Bu kaydı yalnızca kaydın sahibi değiştirebilir.", 403);
-    return reply.sayfa(sayfa(req, { baslik: v.k.ad, geri: { yol: "/kisiler/" + v.k.id, ad: v.k.ad }, icerik: html`<h1>Kişiyi düzenle</h1>${kisiFormu(req, await konumYukle(), v.k, v.telefonlar)}` }));
+    return reply.sayfa(sayfa(req, { baslik: v.k.ad, geri: { yol: "/kisiler/" + v.k.id, ad: v.k.ad }, icerik: html`<h1>Kişiyi düzenle</h1>${kisiFormu(req, await konumYukle(), v.k, v.telefonlar, v.referans)}` }));
   });
   app.post("/kisiler/:id", async (req, reply) => {
     const k = await islem(req.kullanici, (q) => kisiGetir(q, req.params.id));
@@ -196,7 +211,11 @@ export default async function (app) {
         telefonlar: await q("select numara, ana from kisi_telefonlari where kisi_id = $1 and (aktif or $2) order by ana desc, numara", [k.id, !!k.silindi_at]),
         talepler: await q("select * from talepler where kisi_id = $1 and ($2 or silindi_at is null) order by durum, olusturma_at desc", [k.id, !!k.silindi_at]),
         mulkler: await q("select * from mulkler where malik_kisi_id = $1 and ($2 or silindi_at is null) order by durum, olusturma_at desc", [k.id, !!k.silindi_at]),
-        gorusmeler: await q("select * from gorusmeler where kisi_id = $1 order by tarih desc, olusturma_at desc limit 60", [k.id]),
+        gorusmeler: await q("select * from gorusmeler where kisi_id = $1 order by tarih desc nulls last, olusturma_at desc limit 60", [k.id]),
+        // Kim tanıştırdı, kimi tanıştırdı, hangi yerleri getirdi. Başka danışmanın ya da silinmiş kişinin adı okuma kuralından geçmez.
+        referans: k.referans_kisi_id ? await q.bir("select id, ad from kisiler where id = $1", [k.referans_kisi_id]) : null,
+        tanistirdiklari: await q(`select id, ad, referans_notu from kisiler where referans_kisi_id = $1 and silindi_at is null order by ${adNormSql("ad")} limit 100`, [k.id]),
+        getirdikleri: await q("select * from mulkler where kaynak_kisi_id = $1 and silindi_at is null order by (durum in ('aktif', 'opsiyonlu')) desc, olusturma_at desc limit 100", [k.id]),
         hatirlatmalar: await q("select * from hatirlatmalar where kisi_id = $1 and tamamlandi_at is null order by tarih", [k.id]),
         belgeler: await q("select * from belgeler where kisi_id = $1 order by olusturma_at desc", [k.id]),
         danismanlar: await danismanlarAl(q, req),
@@ -212,6 +231,9 @@ export default async function (app) {
           <dt>Telefon</dt><dd>${v.telefonlar.map((t, i) => html`${i ? ", " : ""}${telefonBaglantisi(t.numara)}`)}</dd>
           <dt>Hitap</dt><dd>${hitapYaz(k)} · ${k.sen_siz === "sen" ? "sen" : "siz"}${k.dil === "en" ? " · İngilizce" : ""}</dd>
           ${k.meslek || k.sirket ? html`<dt>İş</dt><dd>${[k.meslek, k.sirket].filter(Boolean).join(" · ")}</dd>` : ""}
+          ${v.referans || k.referans_notu ? html`<dt>Kim tanıştırdı</dt><dd>${kaynakYaz(v.referans, k.referans_notu)}</dd>` : ""}
+          ${v.tanistirdiklari.length || v.getirdikleri.length ? html`<dt>Ondan gelenler</dt><dd><a href="#ondan-gelenler">${[v.tanistirdiklari.length ? `${v.tanistirdiklari.length} kişi tanıştırdı` : "", v.getirdikleri.length ? `${v.getirdikleri.length} yer getirdi` : ""].filter(Boolean).join(" · ")}</a></dd>` : ""}
+          ${k.yatirimci_tipi ? html`<dt>Tipi</dt><dd>${KISI_TIPI[k.yatirimci_tipi]}${(k.calisma_bolgeleri || []).length ? " · " + k.calisma_bolgeleri.map((b) => konum.yerAdi(b.ilce, b.mahalle)).filter(Boolean).join(", ") : ""}${(k.calisma_kategorileri || []).length ? " · " + k.calisma_kategorileri.map((x) => kategoriAdi(x).toLocaleLowerCase("tr")).join(", ") : ""}</dd>` : ""}
           ${k.alim_gucu_tutar != null ? html`<dt>Alım gücü</dt><dd>${paraYaz(k.alim_gucu_tutar, k.alim_gucu_para)}${k.alim_gucu_para === "TRY" && k.alim_gucu_usd ? html` <small>(${paraYaz(k.alim_gucu_usd, "USD")} · ${tarihYaz(k.alim_gucu_tarih)} kuruyla)</small>` : ""}</dd>` : ""}
           <dt>Son temas</dt><dd>${k.son_temas_at ? neKadarOnce(k.son_temas_at) : "kayıt yok"}</dd>
           ${k.notlar ? html`<dt>Notlar</dt><dd>${satirli(k.notlar)}</dd>` : ""}
@@ -241,11 +263,18 @@ export default async function (app) {
           </div>
           <p class="soluk">Bir mülk için görüştüyseniz yerini ve türünü de yazın; ileride benzer mülk çıktığında bu kişi öne çıkar.</p>
           ${konumSecici(konum, {})}
-          <div class="izgara iki">${alan({ ad: "kategori", etiket: "Mülk türü", tip: "select", liste: [{ kod: "", ad: "—" }, ...KATEGORILER] })}${paraAlani({ ad: "tutar", etiket: "Konuşulan tutar" })}</div>
+          <div class="izgara uc">${alan({ ad: "kategori", etiket: "Mülk türü", tip: "select", liste: [{ kod: "", ad: "—" }, ...KATEGORILER] })}
+            ${alan({ ad: "islem", etiket: "Satılık / kiralık", tip: "select", liste: [{ kod: "", ad: "—" }, { kod: "satilik", ad: "Satılık" }, { kod: "kiralik", ad: "Kiralık" }] })}${paraAlani({ ad: "tutar", etiket: "Konuşulan tutar" })}</div>
           ${alan({ ad: "notu", etiket: "Not", tip: "textarea", ek: 'maxlength="2000"' })}
           <button class="dugme kucuk">Görüşmeyi kaydet</button></form></details>` : ""}
-        ${v.gorusmeler.length ? html`<ul class="liste">${v.gorusmeler.map((g) => html`<li><div class="govde"><span class="ad">${tarihYaz(g.tarih)} · ${GORUSME_TURU[g.tur]}${g.sonuc ? " · " + SONUC_ADI[g.sonuc] : ""}</span>
-          <small>${[konum.yerAdi(g.ilce_id, g.mahalle_id), g.kategori ? kategoriAdi(g.kategori) : "", g.tutar_usd ? paraYaz(g.tutar_usd, "USD") : ""].filter(Boolean).join(" · ")}</small>${g.notu ? html`<div class="neden">${satirli(g.notu)}</div>` : ""}</div></li>`)}</ul>` : html`<p class="soluk">Henüz görüşme kaydı yok.</p>`}
+        ${v.gorusmeler.length ? html`<ul class="liste">${v.gorusmeler.map((g) => html`<li><div class="govde"><span class="ad">${gorusmeTarihi(g)} · ${GORUSME_TURU[g.tur]}${g.sonuc ? " · " + SONUC_ADI[g.sonuc] : ""}</span>
+          <small>${[konum.yerAdi(g.ilce_id, g.mahalle_id), g.islem === "kiralik" ? "kiralık" : "", g.kategori ? (g.alt_tur ? altTurAdi(g.kategori, g.alt_tur) : kategoriAdi(g.kategori)) : "", g.tutar_usd ? paraYaz(g.tutar_usd, "USD") : ""].filter(Boolean).join(" · ")}</small>${g.notu ? html`<div class="neden">${satirli(g.notu)}</div>` : ""}</div></li>`)}</ul>` : html`<p class="soluk">Henüz görüşme kaydı yok.</p>`}
+      </div>
+      <div class="kart" id="ondan-gelenler"><h2>Tanıştırdıkları ve getirdiği yerler ${ampul("referans")}</h2>
+        ${v.tanistirdiklari.length ? html`<h3>Tanıştırdığı kişiler (${v.tanistirdiklari.length})</h3><ul class="liste">${v.tanistirdiklari.map((t) => html`<li><div class="govde"><a class="ad" href="/kisiler/${t.id}">${t.ad}</a>${t.referans_notu ? html`<small>${t.referans_notu}</small>` : ""}</div></li>`)}</ul>` : ""}
+        ${v.getirdikleri.length ? html`<h3>Getirdiği yerler (${v.getirdikleri.length})</h3><ul class="liste">${v.getirdikleri.map((m) => html`<li><div class="govde"><a class="ad" href="/mulkler/${m.id}">${m.baslik || `${ISLEM_ADI[m.islem]} · ${mulkTarifi(m, konum)}`}</a><small>${[m.baslik ? mulkTarifi(m, konum) : "", fiyatYaz(m), MULK_DURUMU[m.durum]].filter(Boolean).join(" · ")}</small></div></li>`)}</ul>` : ""}
+        ${!v.tanistirdiklari.length && !v.getirdikleri.length ? html`<p class="soluk">Bu kişinin tanıştırdığı biri ya da getirdiği bir yer kayıtlı değil.</p>` : ""}
+        ${benim ? html`<div class="dugmeler"><a class="dugme kucuk ikincil" href="/kisiler/yeni?referans=${k.id}">+ Tanıştırdığı kişi</a><a class="dugme kucuk ikincil" href="/mulkler/yeni?kaynak=${k.id}">+ Getirdiği yer</a></div>` : ""}
       </div>
       ${belgeBolumu(req, v.belgeler, { kisiId: k.id, yazabilir: benim })}
       ${(k.sahip_id === req.kullanici.id || req.kullanici.rol === "sahip") && !k.silindi_at ? html`<form method="post" action="/kisiler/${k.id}/sil">${csrfAlani(req)}<button class="dugme tehlike kucuk" data-onay="${k.ad} silinsin mi? Talepleri ve mülkleri de silinir.">Kişiyi sil</button> ${ampul("silme")}</form>` : ""}` }));
@@ -264,8 +293,8 @@ export default async function (app) {
       const kur = await kurAl(q), para = secim(f.tutar_para, ["TRY", "USD"], "TRY"), tutar = sayi(f.tutar_tutar);
       const t = tarih(f.tarih) || bugun();
       if (t > bugun()) throw new KullaniciHatasi("Görüşme tarihi ileride olamaz.");
-      await q("insert into gorusmeler (kisi_id, sahip_id, tarih, tur, ilce_id, mahalle_id, kategori, tutar_usd, sonuc, notu) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-        [k.id, req.kullanici.id, t, secim(f.tur, Object.keys(GORUSME_TURU), "gorusme"), yer.ilce_id, yer.mahalle_id, kategori(f.kategori) ? f.kategori : null, tutar == null ? null : Math.round(usd(tutar, para, kur?.usd_try) ?? 0) || null, secim(f.sonuc, Object.keys(SONUC_ADI)), metin(f.notu, 2000)]);
+      await q("insert into gorusmeler (kisi_id, sahip_id, tarih, tur, ilce_id, mahalle_id, kategori, tutar_usd, sonuc, notu, islem) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)",
+        [k.id, req.kullanici.id, t, secim(f.tur, Object.keys(GORUSME_TURU), "gorusme"), yer.ilce_id, yer.mahalle_id, kategori(f.kategori) ? f.kategori : null, tutar == null ? null : Math.round(usd(tutar, para, kur?.usd_try) ?? 0) || null, secim(f.sonuc, Object.keys(SONUC_ADI)), metin(f.notu, 2000), secim(f.islem, ["satilik", "kiralik"])]);
       await q("update kisiler set son_temas_at = greatest(coalesce(son_temas_at, 'epoch'), $2::date) where id = $1", [k.id, t]);
     });
     return reply.bildir("Görüşme kaydedildi.").redirect("/kisiler/" + req.params.id);
