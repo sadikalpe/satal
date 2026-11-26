@@ -244,6 +244,11 @@ test("mesaj: şablon hazırlanır, tam adres ve karşı taraf bilgisi içermez; 
   const satici = await ayse.al(`/mesaj?kisi=${V.malik}&mulk=${V.mulk}&yon=saticiya`);
   const sm = /<textarea[^>]*id="mesaj-metni"[^>]*>([\s\S]*?)<\/textarea>/.exec(satici.body)[1];
   assert.match(sm, /Hülya Hanım/); assert.match(sm, /uygun bir alıcımız var/); assert.doesNotMatch(sm, /Ahmet/);
+  // Kayıt bir kişi adıyla değil firma adıyla duruyorsa hitap "adını yazma" seçilir; mesaj adsız başlar
+  const firma = idAl(await ayse.gonder("/kisiler", kisiFormu("Mavi Asansör", "05557778899", { hitap_turu: "adsiz" })));
+  const fm = /<textarea[^>]*id="mesaj-metni"[^>]*>([\s\S]*?)<\/textarea>/.exec((await ayse.al(`/mesaj?kisi=${firma}&mulk=${V.mulk}`)).body)[1];
+  assert.match(fm, /^Merhaba,\n\n/); assert.doesNotMatch(fm, /Mavi/);
+  assert.match((await ayse.al(`/kisiler/${firma}/duzenle`)).body, /<option value="adsiz" selected/);
   assert.equal((await ayse.gonder("/mesaj/gonderildi", { kisi: V.ahmet, mulk: V.mulk, talep: V.talep, yon: "aliciya", metin })).statusCode, 302);
   const e = await sistem((q) => q.bir("select durum from eslesmeler where talep_id = $1 and mulk_id = $2", [V.talep, V.mulk]));
   assert.equal(e.durum, "gonderildi");
