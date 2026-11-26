@@ -4,7 +4,9 @@ import { altTurAdi, kategori } from "./kategoriler.js";
 import { ilkAd, paraKisa, paraYaz, sayiYaz } from "../lib/metin.js";
 
 // "Ahmet Bey", "Ayşe Hanım", "Ahmet Abi" …
+// "adsiz": kayıt bir kişi adıyla değil firma ya da tarifle duruyor ("Mavi Asansör", "kiralık evi soran"); seslenilecek ad yoktur, boş döner.
 export function hitapYaz(k) {
+  if (k.hitap_turu === "adsiz") return "";
   const ad = (k.hitap_adi || "").trim() || ilkAd(k.ad);
   switch (k.hitap_turu) {
     case "bey": return ad + " Bey";
@@ -15,6 +17,8 @@ export function hitapYaz(k) {
     default: return ad;
   }
 }
+// "Merhaba Ahmet Bey," — seslenilecek ad yoksa yalnızca "Merhaba,"
+export const selamYaz = (soz, hitap) => (hitap ? `${soz} ${hitap},` : `${soz},`);
 export const imzaYaz = (kullanici) => (kullanici.imza || "").trim() || `${kullanici.ad}\nSTA Gayrimenkul`;
 
 // "130 m² 3+1 daire", "2.400 m² konut imarlı arsa"
@@ -39,10 +43,10 @@ export function aliciMesaji({ kisi, mulk, yer, kullanici, fiyatDustu = false }) 
     const o = mulk.ozellikler || {};
     const tarif = [o.m2 ? `${sayiYaz(o.m2)} m²` : "", mulk.kategori === "konut" && o.oda ? o.oda : "", tur].filter(Boolean).join(" ");
     const fiyat = mulk.fiyat_tutar != null ? ` The ${kiralik ? "monthly rent" : "price"} is ${mulk.fiyat_para === "USD" ? "$" + Math.round(mulk.fiyat_tutar).toLocaleString("en-US") : Math.round(mulk.fiyat_tutar).toLocaleString("en-US") + " TL"}.` : "";
-    return `Hello ${hitap},\n\nA ${tarif} ${kiralik ? "for rent " : ""}has come up in ${[yer.mahalle, yer.ilce].filter(Boolean).join(", ")}.${fiyat} Let me know if you are interested and I will send the details.\n\n${imza}`;
+    return `${selamYaz("Hello", hitap)}\n\nA ${tarif} ${kiralik ? "for rent " : ""}has come up in ${[yer.mahalle, yer.ilce].filter(Boolean).join(", ")}.${fiyat} Let me know if you are interested and I will send the details.\n\n${imza}`;
   }
   const sen = kisi.sen_siz === "sen", ton = kullanici.mesaj_tonu || "samimi";
-  const selam = ton === "resmi" ? `İyi günler ${hitap},` : `Merhaba ${hitap},`;
+  const selam = selamYaz(ton === "resmi" ? "İyi günler" : "Merhaba", hitap);
   const yerYazi = yer.mahalle ? `${yer.ilce}, ${yer.mahalle} mahallesinde` : `${yer.ilce} ilçesinde`;
   const tarif = (kiralik ? "kiralık " : "") + mulkKisaTarif(mulk);
   const fiyat = mulk.fiyat_tutar == null ? "" : fiyatDustu ? ` Fiyatı düştü; yeni ${kiralik ? "kirası" : "fiyatı"} ${paraKisa(mulk.fiyat_tutar, mulk.fiyat_para)}.` : ` ${kiralik ? "Aylık kirası" : "Fiyatı"} ${paraKisa(mulk.fiyat_tutar, mulk.fiyat_para)}.`;
@@ -56,8 +60,8 @@ export function aliciMesaji({ kisi, mulk, yer, kullanici, fiyatDustu = false }) 
 // Mülk sahibine: alıcı hakkında hiçbir bilgi verilmez.
 export function saticiMesaji({ kisi, mulk, yer, kullanici }) {
   const hitap = hitapYaz(kisi), imza = imzaYaz(kullanici), sen = kisi.sen_siz === "sen";
-  if (kisi.dil === "en") return `Hello ${hitap},\n\nWe have a suitable ${mulk.islem === "kiralik" ? "tenant" : "buyer"} for your property in ${[yer.mahalle, yer.ilce].filter(Boolean).join(", ")}. Could we talk when you are available?\n\n${imza}`;
-  const selam = kullanici.mesaj_tonu === "resmi" ? `İyi günler ${hitap},` : `Merhaba ${hitap},`;
+  if (kisi.dil === "en") return `${selamYaz("Hello", hitap)}\n\nWe have a suitable ${mulk.islem === "kiralik" ? "tenant" : "buyer"} for your property in ${[yer.mahalle, yer.ilce].filter(Boolean).join(", ")}. Could we talk when you are available?\n\n${imza}`;
+  const selam = selamYaz(kullanici.mesaj_tonu === "resmi" ? "İyi günler" : "Merhaba", hitap);
   const yerYazi = `${[yer.ilce, yer.mahalle].filter(Boolean).join(" ")} bölgesindeki`;
   const mulkAdi = sen ? "mülkün" : "mülkünüz";
   return `${selam}\n\n${yerYazi} ${mulkAdi} için uygun bir ${mulk.islem === "kiralik" ? "kiracımız" : "alıcımız"} var. ${sen ? "Müsait olduğunda görüşebilir miyiz?" : "Müsait olduğunuzda görüşebilir miyiz?"}\n\n${imza}`;
@@ -75,7 +79,7 @@ export function claudeIstegi({ kisi, mulk, yer, kullanici, yon }) {
     o.manzara ? `Manzara: ${o.manzara}` : null,
     mulk.acil ? "Acil satılık" : null,
   ].filter(Boolean).join("\n");
-  const sistem = `Sen bir gayrimenkul danışmanının WhatsApp mesajlarını yazan yardımcısısın. Kısa (en çok 60 kelime), doğal, abartısız bir mesaj yaz. Emoji kullanma, uydurma bilgi ekleme, yalnızca verilen bilgileri kullan. Tam adres, ada/parsel ya da üçüncü kişiler hakkında bilgi yazma. Hitap için tam olarak {HITAP} yer tutucusunu kullan; imza yazma. Yalnızca mesaj metnini döndür.`;
+  const sistem = `Sen bir gayrimenkul danışmanının WhatsApp mesajlarını yazan yardımcısısın. Kısa (en çok 60 kelime), doğal, abartısız bir mesaj yaz. Emoji kullanma, uydurma bilgi ekleme, yalnızca verilen bilgileri kullan. Tam adres, ada/parsel ya da üçüncü kişiler hakkında bilgi yazma. ${hitapYaz(kisi) ? "Hitap için tam olarak {HITAP} yer tutucusunu kullan" : "Kişinin adı bilinmiyor: mesajı adsız bir selamla başlat (“Merhaba,” gibi), ad ya da yer tutucu yazma"}; imza yazma. Yalnızca mesaj metnini döndür.`;
   const kullaniciMetni = yon === "saticiya"
     ? `Mülk sahibine yaz: mülkü için uygun bir ${mulk.islem === "kiralik" ? "kiracı" : "alıcı"} olduğunu, görüşmek istediğimizi söyle. Alıcı hakkında bilgi verme.\nDil: ${kisi.dil === "en" ? "İngilizce" : "Türkçe"}. Hitap biçimi: ${kisi.sen_siz === "sen" ? "sen" : "siz"}. Ton: ${kullanici.mesaj_tonu}.\n\n${ozet}`
     : `Olası alıcıya yaz: aradığına uygun bir mülk geldiğini haber ver, ilgilenirse ayrıntı göndereceğini söyle.\nDil: ${kisi.dil === "en" ? "İngilizce" : "Türkçe"}. Hitap biçimi: ${kisi.sen_siz === "sen" ? "sen" : "siz"}. Ton: ${kullanici.mesaj_tonu}.\n\n${ozet}`;

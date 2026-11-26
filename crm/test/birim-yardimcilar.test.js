@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { telefonNorm, telefonYaz, sayiOku, basHarfBuyut } from "../src/lib/metin.js";
 import { vcfOku, csvOku, dosyaOku, yuklemeHazirla } from "../src/lib/rehber-oku.js";
 import { tcmbOku } from "../src/servis/zamanli.js";
-import { hitapYaz, aliciMesaji, saticiMesaji } from "../src/alan/mesaj.js";
+import { hitapYaz, aliciMesaji, saticiMesaji, claudeIstegi } from "../src/alan/mesaj.js";
 
 test("telefon: farklı yazımlar tek biçime gelir", () => {
   for (const ham of ["0555 111 22 33", "+90 555 111 22 33", "5551112233", "0090 (555) 111-22-33", "905551112233"]) {
@@ -76,6 +76,13 @@ test("TCMB: dolar satış kuru okunur; bozuk yanıtta kur yazılmaz", () => {
 test("mesaj: hitap ve şablonlar; tam adres ve mal sahibi mesajda yer almaz", () => {
   assert.equal(hitapYaz({ ad: "ahmet yılmaz", hitap_turu: "bey", hitap_adi: "Ahmet" }), "Ahmet Bey");
   assert.equal(hitapYaz({ ad: "Ayşe Kaya", hitap_turu: "hanim" }), "Ayşe Hanım");
+  // seslenilecek ad boşsa adın ilk sözcüğü kullanılır; tamamı büyük ya da küçük yazılmışsa düzeltilir
+  assert.equal(hitapYaz({ ad: "İLKER ÖRNEK", hitap_turu: "abi" }), "İlker Abi");
+  assert.equal(hitapYaz({ ad: "ayşe kaya", hitap_turu: "bey_hanim_yok" }), "Ayşe");
+  assert.equal(hitapYaz({ ad: "McAllister Tom", hitap_turu: "bey_hanim_yok" }), "McAllister");
+  assert.equal(hitapYaz({ ad: "1+1 soran", hitap_turu: "bey_hanim_yok" }), "1+1");
+  // seslenilecek ad yazılıysa olduğu gibi kullanılır; yakınlık ya da iş sözü de içerebilir
+  assert.equal(hitapYaz({ ad: "Komşu Feride Teyze", hitap_turu: "bey_hanim_yok", hitap_adi: "Feride Teyze" }), "Feride Teyze");
   assert.equal(hitapYaz({ ad: "Ali Can", hitap_turu: "ozel", hitap_ozel: "Ali Hocam" }), "Ali Hocam");
   const mulk = { kategori: "konut", alt_tur: "daire", islem: "satilik", fiyat_tutar: 6500000, fiyat_para: "TRY", ozellikler: { m2: 130, oda: "3+1" }, adres: "Gizli Sokak No 5", ada: "123", parsel: "45", baslik: "Deniz manzaralı" };
   const kullanici = { ad: "Ayşe Danışman", imza: "" };
@@ -87,4 +94,12 @@ test("mesaj: hitap ve şablonlar; tam adres ve mal sahibi mesajda yer almaz", ()
   const s = saticiMesaji({ kisi: { ad: "Selim Malik", hitap_turu: "bey" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici });
   assert.match(s, /Selim Bey/);
   assert.doesNotMatch(s, /Burak|Gizli Sokak/);
+  // Kayıt kişi adıyla değil firma adı ya da tarifle duruyorsa mesaj adsız başlar
+  const adsiz = { ad: "Mavi Asansör", hitap_turu: "adsiz", hitap_adi: "Mavi" };
+  assert.equal(hitapYaz(adsiz), "");
+  assert.ok(aliciMesaji({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici }).startsWith("Merhaba,\n\nKarşıyaka"));
+  assert.ok(saticiMesaji({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici: { ...kullanici, mesaj_tonu: "resmi" } }).startsWith("İyi günler,\n\n"));
+  assert.ok(aliciMesaji({ kisi: { ...adsiz, dil: "en" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici }).startsWith("Hello,\n\n"));
+  assert.match(claudeIstegi({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici, yon: "aliciya" }).sistem, /adsız bir selamla/);
+  assert.match(claudeIstegi({ kisi: { ad: "Burak Alıcı", hitap_turu: "bey" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici, yon: "aliciya" }).sistem, /\{HITAP\} yer tutucusunu kullan/);
 });

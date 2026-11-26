@@ -10,6 +10,7 @@ import { sirala } from "../alan/eslestirme.js";
 import { konumYukle, ayarlarAl, kurAl, KullaniciHatasi, kaydet, yoneticiMi } from "../servis/ortak.js";
 import { taslakMulkIcinBul } from "../servis/eslesme.js";
 import { talepsizAdaylar } from "../servis/liste.js";
+import { kontrolSayilari } from "../servis/kontrol.js";
 import { dosyaTuru, dosyaKaydet, dosyaYolu, dosyaSil } from "../servis/dosya.js";
 import { metin, sayi, secim } from "../lib/form.js";
 import { tarihYaz, sayiYaz, neKadarOnce, telefonNorm, telefonYaz, tarihSaatYaz } from "../lib/metin.js";
@@ -42,11 +43,14 @@ export default async function (app) {
                 (select count(*) from mulkler where sahip_id = $1 and silindi_at is null and durum in ('aktif', 'opsiyonlu')) as mulk,
                 (select count(*) from talepler where sahip_id = $1 and silindi_at is null and durum = 'aktif') as talep`, [ben]),
       bekleyen: yoneticiMi(req.kullanici) ? (await q.bir("select count(*) as n from kullanicilar where durum = 'onay_bekliyor'")).n : 0,
+      kontrol: await kontrolSayilari(q, ben),
     }));
     const bosMu = !v.yeni.length && !v.sozler.length && !v.aranmayan.length && !v.teyit.length;
     return reply.sayfa(sayfa(req, { baslik: "Bugün", icerik: html`
       <a class="dugme buyuk genis" href="/kim-alir">Elimde bir mülk var, kim alır?</a>
       ${v.bekleyen ? html`<p class="bilgi-kutu"><a href="/yonetim/ekip">${v.bekleyen} üyelik onayınızı bekliyor</a></p>` : ""}
+      ${v.kontrol.kim + v.kontrol.teyit ? html`<p class="bilgi-kutu"><a href="/kontrol">Kontrol listenizde ${v.kontrol.kim + v.kontrol.teyit} açık soru var</a>
+        <small>(${[v.kontrol.kim ? `${v.kontrol.kim} kayıtta getiren ya da tanıştıran rehberden seçilmedi` : "", v.kontrol.teyit ? `${v.kontrol.teyit} kayıt teyit bekliyor` : ""].filter(Boolean).join(", ")})</small></p>` : ""}
       <div class="baslik-satiri ust-bosluk"><h1>Bugün kimi aramalıyım? ${ampul("bugun")}</h1></div>
       ${bosMu ? html`<div class="kart">${bos(v.sayilar.kisi ? "Bugün için bekleyen bir şey yok." : "Henüz rehberiniz boş. Başlamak için rehberinizi yükleyin.", v.sayilar.kisi ? "" : html`<a class="dugme" href="/kisiler/yukle">Rehberimi yükle</a>`)}</div>` : ""}
       ${v.sozler.length ? html`<div class="kart"><h2>Geri arama sözü verdikleriniz</h2><ul class="liste">${v.sozler.map((s) => html`<li>
@@ -61,7 +65,7 @@ export default async function (app) {
           <div class="yan"><form method="post" action="/talepler/${t.id}/teyit" class="satir-form">${csrfAlani(req)}<button class="dugme kucuk" name="yanit" value="evet">Evet</button> <button class="dugme kucuk sade" name="yanit" value="hayir" data-onay="Talep kapatılsın mı?">Hayır</button></form></div></li>`)}</ul></div>` : ""}
       <div class="izgara iki">
         <div class="kart"><h3>Dolar kuru</h3>${v.kur ? html`<div class="kur-satiri"><b>1 $ = ${sayiYaz(v.kur.usd_try, 4)} TL</b><small>${v.kur.kaynak} · ${tarihYaz(v.kur.tarih)}</small></div>` : html`<p class="soluk">Kur henüz alınmadı.</p>`}</div>
-        <div class="kart"><h3>Rehberim</h3><p><a href="/kisiler">${v.sayilar.kisi} kişi</a> · <a href="/mulkler">${v.sayilar.mulk} mülk</a> · <a href="/talepler">${v.sayilar.talep} açık talep</a></p></div>
+        <div class="kart"><h3>Rehberim</h3><p><a href="/kisiler">${v.sayilar.kisi} kişi</a> · <a href="/mulkler">${v.sayilar.mulk} mülk</a> · <a href="/talepler">${v.sayilar.talep} açık talep</a> · <a href="/kontrol">Kontrol listesi</a></p></div>
       </div>` }));
   });
 

@@ -190,7 +190,7 @@ test("tarih okuma: gün, yalnızca yıl, Excel'in tarih sayısı, okunamayan", (
 
 const satir = (basliklar, o) => { for (const k of Object.keys(o)) assert.ok(basliklar.includes(k), "başlık yok: " + k); return basliklar.map((b) => o[b] ?? ""); };
 const KISI2 = ["Kişi No", "Ad Soyad", "Telefon", "Diğer telefonlar", "E-posta", "Şehir", "Şirket / Unvan", "Meslek", "Grup", "Yatırımcı tipi", "Çalışma bölgeleri", "Çalışma türleri", "Alım gücü", "Alım gücü para",
-  "Kim tanıştırdı / yakınlığı", "Tanıştıran Kişi No", "Hitap", "Sen / Siz", "Potansiyel (A/B/C)", "Danışman e-postası (boşsa Sadık)", "Notlar", "Kontrol", "Aktar"];
+  "Kim tanıştırdı / yakınlığı", "Tanıştıran Kişi No", "Seslenilecek ad", "Hitap", "Sen / Siz", "Potansiyel (A/B/C)", "Danışman e-postası (boşsa Sadık)", "Notlar", "Kontrol", "Aktar"];
 const ILGI2 = ["Kişi No", "Ad Soyad", "Tarih", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Oda", "Sonuç", "Not", "Kontrol", "Aktar", "Neden Hayır"];
 const TALEP2 = ["Kişi No", "Ad Soyad", "Tarih", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Oda", "Bütçe (en çok)", "Para", "Nottan", "Aktar", "Neden Hayır"];
 const ARA2 = ["Kişi No", "Ad Soyad", "Telefon", "Ne için aranacak", "Ne zaman", "Durum", "Not"];
@@ -205,9 +205,9 @@ function yeniKitap() {
       satir(KISI2, { "Kişi No": "K2", "Ad Soyad": "Nurten Hanım", "Telefon": "0555 000 00 02", "Yatırımcı tipi": "Olursa alır", "Çalışma bölgeleri": "Menderes; Aydın/Merkez; Buca/Yenigün; Narnia; Menderes", "Çalışma türleri": "Arsa; İş yeri; Uçak",
         "Alım gücü": "5 milyon", "Alım gücü para": "TL", "Kim tanıştırdı / yakınlığı": "Feride Hanım'ın müşterisi", "Tanıştıran Kişi No": "K1", "Aktar": "Evet" }),
       satir(KISI2, { "Kişi No": "K3", "Ad Soyad": "Mualla Hanım", "Telefon": "0555 000 00 03", "Çalışma bölgeleri": "Buca", "Alım gücü": 100000, "Alım gücü para": "EUR", "Tanıştıran Kişi No": "K9", "Kim tanıştırdı / yakınlığı": "komşusu" }),
-      satir(KISI2, { "Kişi No": "K4", "Ad Soyad": "Başka Danışmanın Kişisi", "Telefon": "0555 000 00 04", "Tanıştıran Kişi No": "K1", "Danışman e-postası (boşsa Sadık)": "diger@ornek.test" }),
+      satir(KISI2, { "Kişi No": "K4", "Ad Soyad": "Başka Danışmanın Kişisi", "Telefon": "0555 000 00 04", "Tanıştıran Kişi No": "K1", "Danışman e-postası (boşsa Sadık)": "diger@ornek.test", "Seslenilecek ad": "(yok)", "Hitap": "Bey" }),
       satir(KISI2, { "Kişi No": "K5", "Ad Soyad": "Kendi Kendine", "Telefon": "0555 000 00 05", "Tanıştıran Kişi No": "K5", "Yatırımcı tipi": "Al-satçı", "Çalışma türleri": "Konut" }),
-      satir(KISI2, { "Kişi No": "K6", "Ad Soyad": "Bilinmeyen Tip", "Telefon": "0555 000 00 06", "Yatırımcı tipi": "Belki" })],
+      satir(KISI2, { "Kişi No": "K6", "Ad Soyad": "Örnek Asansör Belkıs", "Telefon": "0555 000 00 06", "Yatırımcı tipi": "Belki", "Seslenilecek ad": " Belkıs " })],
     "Geçmiş ilgiler": [ILGI2,
       satir(ILGI2, { "Kişi No": "K2", "Tarih": "07.09.2023", "Satılık / Kiralık": "Satılık", "Kategori": "Arsa", "Alt tür": "Tarla", "İlçe": "Menderes", "Mahalle": "Oğlananası", "Sonuç": "İlgilendi", "Not": "Ilıca'da tarla sordu", "Aktar": "Evet" }),
       satir(ILGI2, { "Kişi No": "K2", "Tarih": 2021, "Not": "eski not" }),
@@ -218,7 +218,8 @@ function yeniKitap() {
       satir(ILGI2, { "Kişi No": "K1", "İlçe": "Narnia", "Not": "tanınmayan ilçe" })],
     "Talepler": [TALEP2,
       satir(TALEP2, { "Kişi No": "K2", "Tarih": "01.10.2026", "Satılık / Kiralık": "Satılık", "Kategori": "Arsa", "İlçe": "Menderes; Buca; Menderes", "Mahalle": "Yenigün", "Bütçe (en çok)": "3 milyon", "Para": "TL", "Nottan": "yola yakın olsun", "Aktar": "Evet" }),
-      satir(TALEP2, { "Kişi No": "K1", "Tarih": "2025", "Satılık / Kiralık": "Kiralık", "Kategori": "Konut", "Alt tür": "Daire", "İlçe": "Buca", "Mahalle": "Yenigün", "Oda": "2+1" })],
+      satir(TALEP2, { "Kişi No": "K1", "Tarih": "2025", "Satılık / Kiralık": "Kiralık", "Kategori": "Konut", "Alt tür": "Daire", "İlçe": "Buca", "Mahalle": "Yenigün", "Oda": "2+1" }),
+      satir(TALEP2, { "Kişi No": "K2", "Tarih": "26.11.2026", "Satılık / Kiralık": "Satılık", "Kategori": "Arsa", "Alt tür": "Tarla", "İlçe": "Buca", "Mahalle": "Yenigün; Kozağaç; Narnia; Yenigün", "Bütçe (en çok)": 4000000, "Para": "TL", "Nottan": "yola cephesi olsun" })],
     "Aranacaklar": [ARA2,
       satir(ARA2, { "Kişi No": "K1", "Ad Soyad": "Feride Emlakçı", "Ne için aranacak": "Menderes'teki tarla için dönecek", "Ne zaman": "15.12.2026", "Durum": "Bekliyor" }),
       satir(ARA2, { "Kişi No": "K2", "Ad Soyad": "Nurten Hanım", "Ne için aranacak": "Fiyat sorulacak", "Durum": "Bekliyor" }),
@@ -256,6 +257,10 @@ test("aktarım (yeni düzen): kişi tipi, çalışma alanı, alım gücü ve kim
   assert.equal(kendi.yatirimci_tipi, "al_satci");
   assert.deepEqual(kendi.calisma_kategorileri, ["konut"]);
   assert.equal(belki.yatirimci_tipi, null);
+  assert.equal(belki.hitap_adi, "Belkıs", "kayıt adı kişinin adıyla başlamıyorsa mesajda seslenilecek ad ayrıca yazılır");
+  assert.equal(feride.hitap_adi, "");
+  assert.deepEqual([baska.hitap_turu, baska.hitap_adi], ["adsiz", ""], "“(yok)”: kayıtta kişi adı yok; mesaj adsız başlar, Hitap sütununa bakılmaz");
+  assert.equal(belki.hitap_turu, "bey_hanim_yok");
   const uyari = p.uyarilar.map((u) => `${u.sayfa}:${u.satir}:${u.neden}`);
   for (const beklenen of [/^Kişiler:3:çalışma bölgesi “Narnia” tanınmadı/, /^Kişiler:3:çalışma türü “Uçak” tanınmadı/, /^Kişiler:4:alım gücünün para birimi “EUR” tanınmadı/, /^Kişiler:4:çalışma bölgesi ya da türü yazılmış ama yatırımcı tipi boş/,
     /^Kişiler:4:tanıştıran “K9” Kişiler sayfasında yok/, /^Kişiler:5:tanıştıran başka bir danışmanın rehberinde/, /^Kişiler:6:tanıştıran olarak kişinin kendisi/, /^Kişiler:7:yatırımcı tipi “Belki” tanınmadı/]) {
@@ -269,13 +274,13 @@ test("aktarım (yeni düzen): geçmiş ilgiler, çok ilçeli talep ve aranacakla
   assert.equal(p.ilgiler.length, 3);
   const [g1, g2, g3] = p.ilgiler;
   assert.deepEqual({ ...g1, kisi: null, satir: 0 }, { satir: 0, kisi: null, tarih: "2023-09-07", tarih_yaklasik: false, islem: "satilik", kategori: "arsa", alt_tur: "tarla", ilce_id: 1826, mahalle_id: null, sonuc: "ilgilendi",
-    notu: "Ilıca'da tarla sordu\nMahalle: Oğlananası" });
+    notu: "Ilıca'da tarla sordu\nMahalle: Oğlananası", kontrol_notu: "" });
   assert.equal(g1.kisi, nurten);
   assert.deepEqual([g2.tarih, g2.tarih_yaklasik, g2.islem, g2.kategori, g2.ilce_id, g2.notu], ["2021-01-01", true, null, null, null, "eski not"], "yalnızca yılı bilinen ilgi");
   assert.deepEqual([g3.tarih, g3.tarih_yaklasik, g3.islem, g3.kategori, g3.alt_tur, g3.ilce_id, g3.sonuc, g3.notu], [null, false, "kiralik", "konut", "daire", 1780, null, "daire baktı\nOda: 2+1"], "tarihi okunamayan ilgi tarihsiz girer");
 
-  assert.equal(p.talepler.length, 2);
-  const [t1, t2] = p.talepler;
+  assert.equal(p.talepler.length, 3);
+  const [t1, t2, t3] = p.talepler;
   assert.deepEqual(t1.bolgeler, [{ ilce: 1826, mahalle: null }, { ilce: 1780, mahalle: null }], "birden çok ilçe; tekrar atılır");
   assert.equal(t1.notlar, "yola yakın olsun\nMahalle: Yenigün", "çok ilçeli talepte mahalle nota düşer");
   assert.equal(t1.tarih, "2026-10-01");
@@ -284,6 +289,9 @@ test("aktarım (yeni düzen): geçmiş ilgiler, çok ilçeli talep ve aranacakla
   assert.deepEqual(t2.bolgeler, [{ ilce: 1780, mahalle: 10 }]);
   assert.equal(t2.tarih, null, "yalnızca yıl yazılı talep tarihi kullanılmaz");
   assert.equal(t2.kisi, feride);
+  assert.deepEqual(t3.bolgeler, [{ ilce: 1780, mahalle: 10 }, { ilce: 1780, mahalle: 11 }, { ilce: 1780, mahalle: null }], "tek ilçede birden çok mahalle: her biri ayrı bölge; tanınmayan mahalle ilçenin tamamı olur");
+  assert.equal(t3.notlar, "yola cephesi olsun\nMahalle: Narnia");
+  assert.equal(t3.butce_max, 4000000);
 
   assert.equal(p.aranacaklar.length, 2);
   assert.deepEqual([p.aranacaklar[0].kisi, p.aranacaklar[0].tarih, p.aranacaklar[0].notu], [feride, "2026-12-15", "Menderes'teki tarla için dönecek"]);
@@ -314,4 +322,41 @@ test("aktarım (yeni düzen): mülkün durumu, ada / parsel, özellikleri, kimde
   assert.deepEqual(m3.ozellikler, { emsal: 1.5 });
   assert.ok(p.alinmayan.some((a) => a.sayfa === "Mülkler" && a.satir === 5 && /durum “Belirsiz” tanınmadı/.test(a.neden)));
   assert.ok(p.uyarilar.some((u) => u.sayfa === "Mülkler" && u.satir === 3 && /getiren “K9”/.test(u.neden)));
+});
+
+test("aktarım (kontrol listesi): “Kontrol” sütunu teyit notu olur; “Tanıştıran durumu” ve “Getiren durumu” yalnızca adla yazılmış kişi için geçerlidir", () => {
+  const KISI3 = [...KISI2, "Tanıştıran durumu"], MULK3 = [...MULK2, "Getiren durumu"];
+  const mulk = (o) => satir(MULK3, { "Satılık / Kiralık": "Satılık", "Kategori": "Arsa", "Alt tür": "Tarla", "İlçe": "Menderes", "Para": "TL", "Durum": "Satışta", ...o });
+  const p = aktarimHazirla(xlsxOku(xlsx({
+    "Kişiler": [KISI3,
+      satir(KISI3, { "Kişi No": "K1", "Ad Soyad": "Feride Emlakçı", "Telefon": "0555 000 00 01", "Kontrol": "Ad  tam okunamadı;\ndüzeltin" }),
+      satir(KISI3, { "Kişi No": "K2", "Ad Soyad": "Adıyla Tanıştırılan", "Telefon": "0555 000 00 02", "Kim tanıştırdı / yakınlığı": "Mualla Hanım", "Tanıştıran durumu": "Bilinmiyor" }),
+      satir(KISI3, { "Kişi No": "K3", "Ad Soyad": "Bağlı Tanıştırılan", "Telefon": "0555 000 00 03", "Kim tanıştırdı / yakınlığı": "Feride Hanım", "Tanıştıran Kişi No": "K1", "Tanıştıran durumu": "Rehberde yok" }),
+      satir(KISI3, { "Kişi No": "K4", "Ad Soyad": "Notsuz", "Telefon": "0555 000 00 04", "Tanıştıran durumu": "Rehberde yok" }),
+      satir(KISI3, { "Kişi No": "K5", "Ad Soyad": "Tanınmayan Yanıt", "Telefon": "0555 000 00 05", "Kim tanıştırdı / yakınlığı": "Nurten Hanım", "Tanıştıran durumu": "Belki" }),
+      satir(KISI3, { "Kişi No": "K6", "Ad Soyad": "Yanıtsız", "Telefon": "0555 000 00 06", "Kim tanıştırdı / yakınlığı": "Nurten Hanım" }),
+      satir(KISI3, { "Kişi No": "K7", "Ad Soyad": "Rehberde Olmayanla Gelen", "Telefon": "0555 000 00 07", "Kim tanıştırdı / yakınlığı": "ilan sitesi", "Tanıştıran durumu": "rehberde yok" })],
+    "Geçmiş ilgiler": [ILGI2,
+      satir(ILGI2, { "Kişi No": "K1", "Kategori": "Arsa", "İlçe": "Menderes", "Not": "tarla sordu", "Kontrol": "İlçe varsayıldı: Menderes" }),
+      satir(ILGI2, { "Kişi No": "K1", "Not": "varsayımsız" })],
+    "Mülkler": [MULK3,
+      mulk({ "Başlık": "Adıyla gelen", "Kimden geldi": "Mualla Hanım", "Getiren durumu": "Hatırlamıyorum", "Kontrol": "İlçe varsayıldı: Menderes" }),
+      mulk({ "Başlık": "Bağlı gelen", "Kimden geldi": "Feride Hanım", "Kaynak Kişi No": "K1", "Getiren durumu": "Bilinmiyor" }),
+      mulk({ "Başlık": "Rehberde olmayan", "Kimden geldi": "sahibinden ilan", "Getiren durumu": "Rehberde yok" }),
+      mulk({ "Başlık": "Yanıtsız", "Kimden geldi": "Nurten Hanım" }),
+      mulk({ "Başlık": "Getireni yazılmamış", "Getiren durumu": "Bilinmiyor" }),
+      mulk({ "Başlık": "Tanınmayan yanıt", "Kimden geldi": "Nurten Hanım", "Getiren durumu": "sonra" })],
+  })), { konum: KONUM, varsayilanDanisman: "sadik@ornek.test" });
+  assert.deepEqual(p.kisiler.map((k) => [k.no, k.referans_durumu, k.kontrol_notu]), [["K1", null, "Ad tam okunamadı; düzeltin"], ["K2", "bilinmiyor", ""], ["K3", null, ""], ["K4", null, ""], ["K5", null, ""], ["K6", null, ""], ["K7", "rehberde_yok", ""]],
+    "rehberdeki kişiye bağlanan ya da notu olmayan kayıtta yanıt yok sayılır");
+  assert.equal(p.kisiler[2].referans, p.kisiler[0]);
+  assert.deepEqual(p.ilgiler.map((g) => g.kontrol_notu), ["İlçe varsayıldı: Menderes", ""]);
+  assert.deepEqual(p.mulkler.map((m) => [m.baslik, m.kaynak_durumu, m.kontrol_notu]), [["Adıyla gelen", "bilinmiyor", "İlçe varsayıldı: Menderes"], ["Bağlı gelen", null, ""], ["Rehberde olmayan", "rehberde_yok", ""], ["Yanıtsız", null, ""],
+    ["Getireni yazılmamış", null, ""], ["Tanınmayan yanıt", null, ""]]);
+  const uyari = p.uyarilar.map((u) => `${u.sayfa}:${u.satir}:${u.neden}`);
+  assert.deepEqual(uyari, ["Kişiler:6:“Tanıştıran durumu” sütunundaki “Belki” tanınmadı (Rehberde yok ya da Bilinmiyor yazın); boş bırakıldı",
+    "Mülkler:7:“Getiren durumu” sütunundaki “sonra” tanınmadı (Rehberde yok ya da Bilinmiyor yazın); boş bırakıldı"]);
+  // Eski düzen kitapta (bu sütunlar yok) hiçbir şey değişmez
+  const eski = aktarimHazirla(yeniKitap(), { konum: KONUM, varsayilanDanisman: "sadik@ornek.test" });
+  assert.ok(eski.kisiler.every((k) => k.referans_durumu === null && k.kontrol_notu === "") && eski.mulkler.every((m) => m.kaynak_durumu === null && m.kontrol_notu === ""));
 });

@@ -176,4 +176,10 @@ small.blok { display: block; margin: 2px 0 4px; }
 mark { background: #fff1a8; color: inherit; border-radius: 3px; padding: 0 1px; }
 .kesit { overflow-wrap: anywhere; }
 /* Sayfa içi kısa yollar (arama bölümleri, kişinin getirdikleri): başlık sabit üst çubuğun altında kalmasın */
-.kart[id] { scroll-margin-top: 66px; }
+.kart[id], h2[id], details[id] { scroll-margin-top: 66px; }
+/* Kontrol listesi: kayıtta açık kalan soru ("bu kim?", "kontrol edilecek") */
+.sor-kutu { background: var(--b-zemin); border-radius: 10px; padding: 10px 14px; margin: 12px 0; }
+.sor-kutu > p:first-child { margin-top: 0; }
+details.sor-kutu > summary { display: block; margin: 0; font-weight: 600; color: #7a4d00; }
+details.sor-kutu[open] > summary { margin-bottom: 10px; }
+.liste > li > input[type=checkbox] { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: var(--ana); }

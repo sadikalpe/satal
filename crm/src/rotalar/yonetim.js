@@ -24,7 +24,8 @@ const MODULLER = [{ kod: "crm", ad: "Müşteri takibi (CRM)" }, { kod: "claude_m
 const EYLEM_ADI = { kisi_eklendi: "Kişi ekledi", kisi_degisti: "Kişiyi değiştirdi", kisi_silindi: "Kişi sildi", mulk_eklendi: "Mülk ekledi", mulk_degisti: "Mülkü değiştirdi", mulk_silindi: "Mülk sildi", mulk_durum: "Mülk durumunu değiştirdi",
   talep_eklendi: "Talep ekledi", talep_degisti: "Talebi değiştirdi", talep_silindi: "Talep sildi", talep_teyit: "Talebi teyit etti", rehber_yuklendi: "Rehber yükledi", belge_eklendi: "Belge ekledi", giris: "Giriş yaptı", giris_basarisiz: "Hatalı giriş denemesi",
   davet: "Davet gönderdi", uyelik_basvurusu: "Üyelik başvurusu", uyelik_onay: "Üyeliği onayladı", uyelik_kapat: "Üyeliği kapattı", uyelik_ac: "Üyeliği açtı", oturumlar_kapatildi: "Oturumları kapattı", moduller: "Bölümleri değiştirdi", devret: "Rehberi devretti",
-  ayar: "Ayar değiştirdi", kur: "Kur girdi", komsuluk: "Komşuluk değiştirdi", yardim: "Yardım metnini değiştirdi", disa_aktarma: "Dışa aktardı", kalici_silme: "Kalıcı sildi", ekip_eslesme: "Ekip eşleşmesini işaretledi", gizlilik_onayi: "Gizlilik beyanını onayladı", claude_mesaji: "Claude'a mesaj yazdırdı", sifre_belirlendi: "Şifre belirledi" };
+  ayar: "Ayar değiştirdi", kur: "Kur girdi", komsuluk: "Komşuluk değiştirdi", yardim: "Yardım metnini değiştirdi", disa_aktarma: "Dışa aktardı", kalici_silme: "Kalıcı sildi", ekip_eslesme: "Ekip eşleşmesini işaretledi", gizlilik_onayi: "Gizlilik beyanını onayladı", claude_mesaji: "Claude'a mesaj yazdırdı", sifre_belirlendi: "Şifre belirledi",
+  kontrol_baglandi: "Getireni / tanıştıranı rehbere bağladı", kontrol_yanitlandi: "“Bu kim?” sorusunu yanıtladı", kontrol_edildi: "Kontrol etti", kontrol_yanlis: "Varsayımı yanlış buldu", toplu_aktarim: "Toplu aktarım" };
 const csvHucre = (v) => { let s = v == null ? "" : Array.isArray(v) ? v.join(" | ") : typeof v === "object" ? JSON.stringify(v) : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
 
 async function hedefKullanici(q, req, id) {
@@ -143,6 +144,10 @@ export default async function (app) {
     if (!hedef) throw new KullaniciHatasi("Rehberi devralacak kişiyi seçin.");
     // Devralan kişide zaten kayıtlı numaralar: devredilen kayıtta numara pasifleşir (çift kayıt oluşmaz)
     await q("update kisi_telefonlari set aktif = false where sahip_id = $1 and aktif and numara in (select numara from kisi_telefonlari where sahip_id = $2 and aktif)", [u.id, hedef.id]);
+    // Ayrılanın yanıtlamadığı "bu kim?" soruları devralanın kontrol listesini doldurmasın: adı o yazmadı, kim olduğunu bilemez.
+    // "Kim olduğu bilinmiyor" diye ayrı listede durur; tanıyorsa oradan bağlar.
+    await q("update kisiler set referans_durumu = 'bilinmiyor' where sahip_id = $1 and referans_kisi_id is null and referans_notu <> '' and referans_durumu is null", [u.id]);
+    await q("update mulkler set kaynak_durumu = 'bilinmiyor' where sahip_id = $1 and kaynak_kisi_id is null and kaynak_notu <> '' and kaynak_durumu is null", [u.id]);
     await q("update kisiler set devralinan_sahip_id = coalesce(devralinan_sahip_id, sahip_id), sahip_id = $2 where sahip_id = $1", [u.id, hedef.id]);
     for (const t of ["kisi_telefonlari", "talepler", "mulkler", "gorusmeler", "hatirlatmalar", "mesajlar", "belgeler"]) await q(`update ${t} set sahip_id = $2 where sahip_id = $1`, [u.id, hedef.id]);
     await q("update eslesmeler set talep_sahip_id = $2 where talep_sahip_id = $1", [u.id, hedef.id]);
@@ -384,9 +389,9 @@ export default async function (app) {
 
   // ---------- Dışa aktarma (sistem sahibi) ----------
   const AKTARIM = {
-    kisiler: { ad: "Kişiler", sql: `select k.ad, (select string_agg(t.numara, ' | ') from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as telefonlar, u.ad as danisman, k.potansiyel, k.meslek, k.sirket, k.alim_gucu_tutar, k.alim_gucu_para, k.yatirimci_tipi, k.mesaj_istemiyor, k.son_temas_at, k.olusturma_at, k.silindi_at, r.ad as tanistiran, k.referans_notu, k.notlar
+    kisiler: { ad: "Kişiler", sql: `select k.ad, (select string_agg(t.numara, ' | ') from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as telefonlar, u.ad as danisman, k.potansiyel, k.meslek, k.sirket, k.alim_gucu_tutar, k.alim_gucu_para, k.yatirimci_tipi, k.mesaj_istemiyor, k.son_temas_at, k.olusturma_at, k.silindi_at, r.ad as tanistiran, k.referans_notu, k.referans_durumu, k.kontrol_notu, k.notlar
         from kisiler k join kullanicilar u on u.id = k.sahip_id left join kisiler r on r.id = k.referans_kisi_id order by u.ad, k.ad` },
-    mulkler: { ad: "Mülkler", sql: `select m.islem, m.kategori, m.alt_tur, m.baslik, i.ad as ilce, h.ad as mahalle, m.ada, m.parsel, m.fiyat_tutar, m.fiyat_para, m.durum, k.ad as malik, u.ad as danisman, m.ozellikler, m.olusturma_at, m.silindi_at, g.ad as getiren, m.kaynak_notu, m.notlar
+    mulkler: { ad: "Mülkler", sql: `select m.islem, m.kategori, m.alt_tur, m.baslik, i.ad as ilce, h.ad as mahalle, m.ada, m.parsel, m.fiyat_tutar, m.fiyat_para, m.durum, k.ad as malik, u.ad as danisman, m.ozellikler, m.olusturma_at, m.silindi_at, g.ad as getiren, m.kaynak_notu, m.kaynak_durumu, m.kontrol_notu, m.notlar
         from mulkler m join kullanicilar u on u.id = m.sahip_id left join kisiler k on k.id = m.malik_kisi_id left join kisiler g on g.id = m.kaynak_kisi_id left join ilceler i on i.id = m.ilce_id left join mahalleler h on h.id = m.mahalle_id order by u.ad, m.olusturma_at` },
     talepler: { ad: "Talepler", sql: `select k.ad as kisi, u.ad as danisman, t.islem, t.alici_tipi, t.kategoriler, t.alt_turler, t.butce_min_tutar, t.butce_max_tutar, t.butce_para, t.butce_tarih, t.durum, t.kriterler, t.olusturma_at, t.silindi_at, t.notlar
         from talepler t join kullanicilar u on u.id = t.sahip_id join kisiler k on k.id = t.kisi_id order by u.ad, k.ad` },

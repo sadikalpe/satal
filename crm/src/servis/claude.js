@@ -32,5 +32,7 @@ export async function claudeMesaji({ kisi, mulk, yer, kullanici, yon }) {
   if (yanit.stop_reason === "refusal") throw new KullaniciHatasi("Claude bu mesajı yazmadı. Hazır şablonu kullanabilirsiniz.", 502);
   const metin = yanit.content.filter((b) => b.type === "text").map((b) => b.text).join("").trim();
   if (!metin) throw new KullaniciHatasi("Claude boş yanıt verdi. Hazır şablonu kullanabilirsiniz.", 502);
-  return metin.replaceAll("{HITAP}", hitapYaz(kisi)) + "\n\n" + imzaYaz(kullanici);
+  // Seslenilecek ad yoksa ("adsız" hitap) yer tutucu, önündeki boşlukla birlikte silinir: "Merhaba {HITAP}," → "Merhaba,"
+  const hitap = hitapYaz(kisi);
+  return (hitap ? metin.replaceAll("{HITAP}", hitap) : metin.replace(/[ \t]*\{HITAP\}/g, "")) + "\n\n" + imzaYaz(kullanici);
 }
