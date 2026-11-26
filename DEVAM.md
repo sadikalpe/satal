@@ -88,13 +88,19 @@ yok; çalışma temamız GSM numaraları ve bu numaralara WhatsApp'tan mesaj atm
   sayılmadı. Dökümden yalnızca ad, telefon, e-posta, kurum ve not okundu; doğum günü, fotoğraf ve adres okunmadı.
 - Satal'a eklenenler:
   - **Seslenilecek ad aktarımda okunuyor:** kayıt adı kişinin kendi adıyla başlamıyorsa mesajda kullanılacak ad
-    kitaptaki "Seslenilecek ad" sütunundan gelir (kişi kartındaki aynı adlı alana yazılır).
+    kitaptaki "Seslenilecek ad" sütunundan gelir (kişi kartındaki aynı adlı alana yazılır). Sütun boşsa adın ilk
+    sözcüğü kullanılır; tamamı büyük ya da küçük harfle yazılmış ad düzeltilir ("AHMET" → "Ahmet").
   - **Adsız hitap** (şema: `crm/migrations/004_adsiz_hitap.sql`): kayıtta kişi adı hiç yoksa hitap "Adını yazma" olur
     ve mesaj yalnızca "Merhaba," diye başlar (önceden adın ilk sözcüğüyle başlıyordu). Kitapta "Seslenilecek ad"
-    sütununda "(yok)" yazan 325 kişi böyle girer; kişi kartından değiştirilebilir. Claude'a yazdırılan mesajda da geçerli.
+    sütununda "(yok)" yazan 643 kişi (604'ü aktarılacak) böyle girer; kişi kartından değiştirilebilir. Claude'a
+    yazdırılan mesajda da geçerli.
   - **Bir talepte birden çok mahalle:** tek ilçe yazılıysa mahalle sütununa "A; B; C" yazılabilir, her biri ayrı bölge olur.
-- Bilinen sınır: adın ilk sözcüğü listede olmayan bir kişi adı mı, firma adı mı ayırt edilemiyorsa (560 kadar kayıt)
-  mesaj o ilk sözcükle başlar; yanlış olan kişi kartından düzeltilir.
+- "Seslenilecek ad" kitapta nasıl doldu: adı bilgiyle başlayan kayıtta ayıklayıcı içindeki kişi adını bulur; "Dr., Av.,
+  Prof." ile başlayan adda sonraki adı alır; adın ardından "Teyze, Amca, Dayı, Yenge, Enişte, Hala, Usta, Hoca"
+  geliyorsa onu da yazar ("Feride Teyze"; Bey / Hanım / Abi / Abla yazılıysa o geçerlidir). Adı ayıklayıcının
+  tanımadığı bir sözcükle başlayan 560 kayıt tek tek okundu: 175'inde kişinin adı yazıldı, 311'i adsız selama alındı,
+  ilk sözcüğü az rastlanan bir ad ya da lakap olabilecek 74'ü olduğu gibi bırakıldı (mesaj o sözcükle başlar; yanlışsa
+  kişi kartından düzeltilir). Deneme yüklemesinde 4.313 kişinin selamı tek tek üretildi; yazımı bozuk selam kalmadı.
 - Denetim: `npm test` → 67 test. Güncel kitap yerel deneme veritabanına yüklendi (sonra silindi), sayılar aşağıda.
 
 ## Günlük notlar (26.11.2026'dan beri)

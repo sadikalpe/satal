@@ -56,9 +56,10 @@ Kitaptan okunan sayfalar ve Satal'daki karşılıkları:
 satır girmez. Sütun düzeni: `src/lib/aktarim-hazirla.js`.
 
 Rehberde ad alanına bilgi de yazılmış olabilir ("Örnek Asansör Ahmet", "kiralık evi soran"). Mesajın doğru başlaması
-için Kişiler sayfasındaki "Seslenilecek ad" sütunu okunur: doluysa mesajda o ad kullanılır ("Merhaba Ahmet,"); boşsa
-adın ilk sözcüğü; "(yok)" yazıyorsa kayıtta kişi adı yoktur, kişi "Adını yazma" hitabıyla girer ve mesaj yalnızca
-"Merhaba," diye başlar. Sonradan kişi kartından değiştirilebilir.
+için Kişiler sayfasındaki "Seslenilecek ad" sütunu okunur: doluysa mesajda o ad kullanılır ("Merhaba Ahmet,";
+"Feride Teyze", "Kemal Usta" gibi bir seslenme de yazılabilir); boşsa adın ilk sözcüğü (tamamı büyük ya da küçük
+harfle yazılmışsa düzeltilerek: "AHMET" → "Ahmet"); "(yok)" yazıyorsa kayıtta kişi adı yoktur, kişi "Adını yazma"
+hitabıyla girer ve mesaj yalnızca "Merhaba," diye başlar. Sonradan kişi kartından değiştirilebilir.
 
 Kitaptaki açık sorular Satal'da danışmanın **Kontrol listesi**ne (`/kontrol`) düşer:
 - Kişiler, Geçmiş ilgiler ve Mülkler sayfasındaki "Kontrol" sütunu (bir varsayım ya da eksik) kaydın teyit notu olur;

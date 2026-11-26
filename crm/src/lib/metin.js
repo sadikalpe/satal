@@ -98,6 +98,11 @@ export function neKadarOnce(t, simdi = new Date()) {
   return y + " yıl önce";
 }
 
-// "Ahmet Yılmaz" → "Ahmet"
-export const ilkAd = (ad) => String(ad || "").trim().split(/\s+/)[0] || "";
+// "Ahmet Yılmaz" → "Ahmet". Selamda kullanıldığı için tamamı büyük ya da tamamı küçük harfle yazılmış ad düzeltilir:
+// "AHMET YILMAZ" / "ahmet yılmaz" → "Ahmet". İçinde iki türü de bulunan yazım ("McAllister") olduğu gibi kalır.
+export const ilkAd = (ad) => {
+  const s = String(ad || "").trim().split(/\s+/)[0] || "";
+  const tekTur = s.length > 1 && /\p{L}/u.test(s) && (s === s.toLocaleUpperCase("tr") || s === s.toLocaleLowerCase("tr"));
+  return tekTur ? basHarfBuyut(s) : s;
+};
 export const basHarfBuyut = (s) => String(s || "").toLocaleLowerCase("tr").replace(/(^|[\s-])(\p{L})/gu, (m, a, b) => a + b.toLocaleUpperCase("tr"));

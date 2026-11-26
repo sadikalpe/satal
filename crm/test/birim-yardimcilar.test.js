@@ -76,6 +76,13 @@ test("TCMB: dolar satış kuru okunur; bozuk yanıtta kur yazılmaz", () => {
 test("mesaj: hitap ve şablonlar; tam adres ve mal sahibi mesajda yer almaz", () => {
   assert.equal(hitapYaz({ ad: "ahmet yılmaz", hitap_turu: "bey", hitap_adi: "Ahmet" }), "Ahmet Bey");
   assert.equal(hitapYaz({ ad: "Ayşe Kaya", hitap_turu: "hanim" }), "Ayşe Hanım");
+  // seslenilecek ad boşsa adın ilk sözcüğü kullanılır; tamamı büyük ya da küçük yazılmışsa düzeltilir
+  assert.equal(hitapYaz({ ad: "İLKER ÖRNEK", hitap_turu: "abi" }), "İlker Abi");
+  assert.equal(hitapYaz({ ad: "ayşe kaya", hitap_turu: "bey_hanim_yok" }), "Ayşe");
+  assert.equal(hitapYaz({ ad: "McAllister Tom", hitap_turu: "bey_hanim_yok" }), "McAllister");
+  assert.equal(hitapYaz({ ad: "1+1 soran", hitap_turu: "bey_hanim_yok" }), "1+1");
+  // seslenilecek ad yazılıysa olduğu gibi kullanılır; yakınlık ya da iş sözü de içerebilir
+  assert.equal(hitapYaz({ ad: "Komşu Feride Teyze", hitap_turu: "bey_hanim_yok", hitap_adi: "Feride Teyze" }), "Feride Teyze");
   assert.equal(hitapYaz({ ad: "Ali Can", hitap_turu: "ozel", hitap_ozel: "Ali Hocam" }), "Ali Hocam");
   const mulk = { kategori: "konut", alt_tur: "daire", islem: "satilik", fiyat_tutar: 6500000, fiyat_para: "TRY", ozellikler: { m2: 130, oda: "3+1" }, adres: "Gizli Sokak No 5", ada: "123", parsel: "45", baslik: "Deniz manzaralı" };
   const kullanici = { ad: "Ayşe Danışman", imza: "" };
