@@ -20,7 +20,7 @@ import { metin, dizi, sayi, secim, uuidMi, tarih, isaretli } from "../lib/form.j
 import { norm, telefonNorm, telefonYaz, tarihYaz, neKadarOnce, paraYaz, bugun, ilkAd } from "../lib/metin.js";
 import { hitapYaz } from "../alan/mesaj.js";
 
-const HITAP = [{ kod: "bey_hanim_yok", ad: "Yalnızca adıyla (Ahmet)" }, { kod: "bey", ad: "Bey (Ahmet Bey)" }, { kod: "hanim", ad: "Hanım (Ayşe Hanım)" }, { kod: "abi", ad: "Abi (Ahmet Abi)" }, { kod: "abla", ad: "Abla (Ayşe Abla)" }, { kod: "ozel", ad: "Kendim yazacağım" }];
+const HITAP = [{ kod: "bey_hanim_yok", ad: "Yalnızca adıyla (Ahmet)" }, { kod: "bey", ad: "Bey (Ahmet Bey)" }, { kod: "hanim", ad: "Hanım (Ayşe Hanım)" }, { kod: "abi", ad: "Abi (Ahmet Abi)" }, { kod: "abla", ad: "Abla (Ayşe Abla)" }, { kod: "ozel", ad: "Kendim yazacağım" }, { kod: "adsiz", ad: "Adını yazma (yalnızca “Merhaba,”)" }];
 const POTANSIYEL = [{ kod: "", ad: "Belirtilmedi" }, { kod: "A", ad: "A — alır ya da satar" }, { kod: "B", ad: "B — belki" }, { kod: "C", ad: "C — zor" }];
 const SAYFA = 50;
 const idGerekli = (id) => { if (!uuidMi(id)) throw new KullaniciHatasi("Kayıt bulunamadı.", 404); return id; };
@@ -242,7 +242,7 @@ export default async function (app) {
         <div class="etiketler">${kisiEtiketleri(k)}${!benim && k.sahip_id !== req.kullanici.id ? danismanEtiketi(v.danismanlar.get(k.sahip_id)) : ""}</div>
         <dl class="tanim">
           <dt>Telefon</dt><dd>${v.telefonlar.map((t, i) => html`${i ? ", " : ""}${telefonBaglantisi(t.numara)}`)}</dd>
-          <dt>Hitap</dt><dd>${hitapYaz(k)} · ${k.sen_siz === "sen" ? "sen" : "siz"}${k.dil === "en" ? " · İngilizce" : ""}</dd>
+          <dt>Hitap</dt><dd>${hitapYaz(k) || "adını yazma"} · ${k.sen_siz === "sen" ? "sen" : "siz"}${k.dil === "en" ? " · İngilizce" : ""}</dd>
           ${k.meslek || k.sirket ? html`<dt>İş</dt><dd>${[k.meslek, k.sirket].filter(Boolean).join(" · ")}</dd>` : ""}
           ${v.referans || k.referans_notu ? html`<dt>Kim tanıştırdı</dt><dd>${kaynakYaz(v.referans, k.referans_notu)}${!k.referans_kisi_id && k.referans_durumu ? html` <span class="etiket-k${k.referans_durumu === "bilinmiyor" ? " sari" : ""}">${BAG_DURUMU[k.referans_durumu]}</span>` : ""}</dd>` : ""}
           ${v.tanistirdiklari.length || v.getirdikleri.length ? html`<dt>Ondan gelenler</dt><dd><a href="#ondan-gelenler">${[v.tanistirdiklari.length ? `${v.tanistirdiklari.length} kişi tanıştırdı` : "", v.getirdikleri.length ? `${v.getirdikleri.length} yer getirdi` : ""].filter(Boolean).join(" · ")}</a></dd>` : ""}

@@ -474,10 +474,10 @@ test("toplu aktarım: Excel'deki kişi, geçmiş ilgi, talep, mülk ve aranacakl
   const sayfa = (basliklar, ...satirlar) => [basliklar, ...satirlar.map((o) => { for (const b of Object.keys(o)) assert.ok(basliklar.includes(b), "başlık yok: " + b); return basliklar.map((b) => o[b] ?? ""); })];
   const sayfalar = {
     "Okuyun": [["Bu sayfa okunmaz"]],
-    "Kişiler": sayfa(["Kişi No", "Ad Soyad", "Telefon", "Diğer telefonlar", "Şirket / Unvan", "Meslek", "Yatırımcı tipi", "Çalışma bölgeleri", "Çalışma türleri", "Alım gücü", "Alım gücü para", "Kim tanıştırdı / yakınlığı", "Tanıştıran Kişi No", "Hitap", "Notlar", "Aktar"],
-      { "Kişi No": "A1", "Ad Soyad": "Aktarılan Aracı", "Telefon": "0555 880 00 01", "Meslek": "Emlakçı" },
+    "Kişiler": sayfa(["Kişi No", "Ad Soyad", "Telefon", "Diğer telefonlar", "Şirket / Unvan", "Meslek", "Yatırımcı tipi", "Çalışma bölgeleri", "Çalışma türleri", "Alım gücü", "Alım gücü para", "Kim tanıştırdı / yakınlığı", "Tanıştıran Kişi No", "Seslenilecek ad", "Hitap", "Notlar", "Aktar"],
+      { "Kişi No": "A1", "Ad Soyad": "Aktarılan Aracı", "Telefon": "0555 880 00 01", "Meslek": "Emlakçı", "Seslenilecek ad": "(yok)", "Hitap": "Bey" },
       { "Kişi No": "A2", "Ad Soyad": "Aktarılan Yatırımcı", "Telefon": "0555 880 00 02", "Yatırımcı tipi": "Yatırımcı", "Çalışma bölgeleri": "Karşıyaka", "Çalışma türleri": "Konut", "Alım gücü": "12 milyon", "Alım gücü para": "TL",
-        "Kim tanıştırdı / yakınlığı": "Aracı'nın müşterisi", "Tanıştıran Kişi No": "A1", "Notlar": "Mavişehir'de daire bakıyordu" },
+        "Kim tanıştırdı / yakınlığı": "Aracı'nın müşterisi", "Tanıştıran Kişi No": "A1", "Notlar": "Mavişehir'de daire bakıyordu", "Seslenilecek ad": "Nurten", "Hitap": "Hanım" },
       { "Kişi No": "A3", "Ad Soyad": "Feride (Excel'deki adı)", "Telefon": "0555 666 00 01", "Diğer telefonlar": "0555 880 00 03", "Meslek": "Müteahhit", "Yatırımcı tipi": "Al-satçı", "Çalışma türleri": "Arsa", "Hitap": "Abi", "Notlar": "Excel'deki not" },
       { "Kişi No": "A4", "Ad Soyad": "Alınmayacak Kurum", "Telefon": "0555 880 00 04", "Aktar": "Hayır" }),
     "Geçmiş ilgiler": sayfa(["Kişi No", "Ad Soyad", "Tarih", "Satılık / Kiralık", "Kategori", "Alt tür", "İl", "İlçe", "Mahalle", "Oda", "Sonuç", "Not", "Aktar"],
@@ -521,6 +521,10 @@ test("toplu aktarım: Excel'deki kişi, geçmiş ilgi, talep, mülk ve aranacakl
     (select array_agg(t.ana order by t.ana desc, t.numara) from kisi_telefonlari t where t.kisi_id = k.id and t.aktif) as analar from kisiler k where k.ad = $1 and k.sahip_id = $2`, [ad, K.ayse]));
   const araci = await kisi("Aktarılan Aracı"), yatirimci = await kisi("Aktarılan Yatırımcı"), feride = await kisi("Feride Emlakçı");
   assert.equal(araci.meslek, "Emlakçı");
+  // Kayıtta kişi adı yoksa ("(yok)") mesaj adsız başlar; ad bilgiyle başlıyorsa seslenilecek ad ayrıca gelir
+  assert.deepEqual([araci.hitap_turu, araci.hitap_adi, yatirimci.hitap_turu, yatirimci.hitap_adi], ["adsiz", "", "hanim", "Nurten"]);
+  assert.match((await ayse.al(`/kisiler/${araci.id}`)).body, /<dt>Hitap<\/dt><dd>adını yazma · siz/);
+  assert.match((await ayse.al(`/kisiler/${yatirimci.id}`)).body, /<dt>Hitap<\/dt><dd>Nurten Hanım · siz/);
   assert.deepEqual([yatirimci.yatirimci_tipi, yatirimci.calisma_bolgeleri, yatirimci.calisma_kategorileri, yatirimci.alim_gucu_tutar, yatirimci.alim_gucu_para, yatirimci.alim_gucu_usd, yatirimci.referans_kisi_id, yatirimci.referans_notu],
     ["yatirimci", [{ ilce: yer.ilce, mahalle: null }], ["konut"], 12000000, "TRY", 300000, araci.id, "Aracı'nın müşterisi"]);
   assert.equal(yatirimci.son_temas, "2026-10-01", "son temas: günü belli olan en yeni ilgi ya da talep tarihi");

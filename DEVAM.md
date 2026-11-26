@@ -1,10 +1,13 @@
-# Kaldığımız yer (25.11.2026)
+# Kaldığımız yer (26.11.2026)
 
-**Şu an:** Satal'a "kontrol listesi" eklendi; PR 7 açık, Sadık'ın onayını bekliyor (dal `claude/project-thread-zypzh0`).
-Hafıza eklemeleri ve aktarım PR 6 ile ana kopyada (25.11.2026, Sadık onayladı).
-Sıradaki adımlar: (1) PR 7 onaylanınca ana kopyaya alınır, (2) Sadık'tan rehberin güncel hali (Google "Kişiler"
-dökümü) ve 25.11.2026'da sorulan soruların yanıtı bekleniyor; gelince kitaba işlenir, kalan sorular üçer üçer
-sorulur, (3) Halis Bey'den sunucu bilgisi gelince kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
+**Şu an:** Sadık'ın güncel rehberi (Google "Kişiler" dökümü) aktarım kitabına işlendi; adlara yazdığı bilgiler de
+ayrıştırıldı. Kitap yerel deneme veritabanına sorunsuz yüklendi. PR 7 hâlâ açık, Sadık'ın onayını bekliyor (dal
+`claude/project-thread-zypzh0`); içinde kontrol listesinin yanında 26.11.2026 eklemeleri de var (adsız hitap,
+aktarımda seslenilecek ad, bir talepte birden çok mahalle). Hafıza eklemeleri ve aktarım PR 6 ile ana kopyada.
+Sıradaki adımlar: (1) PR 7 onaylanınca ana kopyaya alınır, (2) Sadık'tan 26.11.2026'da sorulan üç "bu kim?" sorusunun
+ve daha önce sorulanların yanıtı bekleniyor; geldikçe kitaba işlenir, kalanlar üçer üçer sorulur, (3) Sadık'ın sohbete
+yazdığı her yeni talep ve not kitaba işlenir (aşağıda "Günlük notlar"), (4) Halis Bey'den sunucu bilgisi gelince
+kurulum yapılır ve kitap yüklenir (`crm/KURULUM.md`).
 
 ## Yeni Satal yazıldı (23–24.11.2026) — `crm/` klasörü
 Sadık "yaz, dene, denet" dedi; ilk sürüm tam kapsamlı yazıldı, yerelde çalıştırılıp denendi. **Sunucuya kurulmadı**
@@ -69,16 +72,49 @@ Satal'a eklenenler (şema: `crm/migrations/003_kontrol.sql`, ekran: `/kontrol`):
   baştan sona kullanıldı. `npm run ornek-veri` ile gelen uydurma kayıtlarda da listede örnek sorular var.
 - Satal açılana kadar aynı iş aktarım kitabında yürür: "Kontrol listesi" sayfası (aşağıda).
 
-## Eldeki verilerin aktarımı (24–25.11.2026)
-- Kaynaklar: Sadık'ın telefon rehberi (4.172 satır), Google Keep notları, WhatsApp (24 sohbet + ofis grubu). Hepsi tek
-  bir "aktarım çalışma kitabı"nda; gerçek kişi verisi içerdiği için depoda DEĞİL, proje dosyalarında:
-  `satal-aktarim/satal-aktarim.xlsx` (asıl kopya). Betikler de orada (`temizle.py`, `wa_ekle.py`, `hafiza.py`,
-  `hafiza_veri.py`); ilk düzenin yedeği `kaynak/` klasöründe. Kişilerin hepsi Sadık'ın adına girecek.
-- Kitabın sayfaları (25.11.2026 düzeni): Okuyun (açıklama, sorular ve yanıtlar), Kontrol listesi (açık sorular tek
-  sayfada: 56 "bu kim?", 9 hatırlanmayan, 67 teyit; Sadık yanıtını sohbette söyler ya da "Yanıtınız" sütununa yazar),
-  Kişiler (4.047; tipi, çalıştığı bölge ve tür, kim tanıştırdı, tanıştıran durumu; "Kontrol" yanıt bekleyenler,
-  "Açıklama" yalnızca bilgi), Geçmiş ilgiler (254), Talepler (5), Aranacaklar (37), Mülkler (312: 71 satışta, 231 arşiv,
-  10 satıldı; kimden geldi, getiren durumu, not tarihi), Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
+## Adlara yazılan bilgiler ve güncel rehber (26.11.2026) — PR 7'ye eklendi
+Sadık: "Bazı kişileri kaydederken isime bilgiler yazıyorum, onları da değerlendir." ve "Sabit numaralara ihtiyacım
+yok; çalışma temamız GSM numaraları ve bu numaralara WhatsApp'tan mesaj atmak üzerine kurulu."
+- Sadık'ın ad düzeni (kendisi doğruladı): "Ad + yer / iş / ilgi + referans kişi". Ad her zaman kişi adıyla başlamıyor
+  (firma, cihaz ya da tarifle başlayabiliyor), bazılarında hiç kişi adı yok.
+- Kitapta yapılan (betikler proje dosyalarında: ayıklayıcı `ad_bilgi.py`, `rehber2.py`, elle verilen kararlar
+  `rehber2_veri.py`): adlardan meslek, şirket, şehir, hitap, tip, "kim tanıştırdı" bağlantısı, geçmiş ilgi etiketi ve
+  mülk satırı çıkarıldı; adın kendisi değiştirilmedi. Emin olunmayan hiçbir şey kesin gibi yazılmadı: birden çok adayı
+  olan adlar kontrol listesinde "bu kim?" olarak bekliyor, varsayımlar "Kontrol" sütununda. İçinde sağlık, dava gibi
+  özel bir sözcük geçen adlara dokunulmadı. Eski dosyadan kalan hitap sütunu (kısalmış adlardan çıkmıştı) tam adlara
+  göre yeniden kuruldu.
+- Yalnızca cep numarası tutulur (kalıcı kural, aşağıda). Sabit numaralar çıkarıldı; cep numarası olmayan 137 kişi
+  "Aktar: Hayır" oldu (Sadık isterse geri alınır). Dökümdeki toplu yüklenmiş firma dizini (3.640 kart) rehber
+  sayılmadı. Dökümden yalnızca ad, telefon, e-posta, kurum ve not okundu; doğum günü, fotoğraf ve adres okunmadı.
+- Satal'a eklenenler:
+  - **Seslenilecek ad aktarımda okunuyor:** kayıt adı kişinin kendi adıyla başlamıyorsa mesajda kullanılacak ad
+    kitaptaki "Seslenilecek ad" sütunundan gelir (kişi kartındaki aynı adlı alana yazılır).
+  - **Adsız hitap** (şema: `crm/migrations/004_adsiz_hitap.sql`): kayıtta kişi adı hiç yoksa hitap "Adını yazma" olur
+    ve mesaj yalnızca "Merhaba," diye başlar (önceden adın ilk sözcüğüyle başlıyordu). Kitapta "Seslenilecek ad"
+    sütununda "(yok)" yazan 325 kişi böyle girer; kişi kartından değiştirilebilir. Claude'a yazdırılan mesajda da geçerli.
+  - **Bir talepte birden çok mahalle:** tek ilçe yazılıysa mahalle sütununa "A; B; C" yazılabilir, her biri ayrı bölge olur.
+- Bilinen sınır: adın ilk sözcüğü listede olmayan bir kişi adı mı, firma adı mı ayırt edilemiyorsa (560 kadar kayıt)
+  mesaj o ilk sözcükle başlar; yanlış olan kişi kartından düzeltilir.
+- Denetim: `npm test` → 67 test. Güncel kitap yerel deneme veritabanına yüklendi (sonra silindi), sayılar aşağıda.
+
+## Günlük notlar (26.11.2026'dan beri)
+Sadık talepleri ve notları sohbete yazıyor ya da dikte ediyor ("… şu taraflardan şu kadarlık yer arıyor"). Her notta:
+kişi rehberde bulunur (iki aday varsa sorulur), talep `hafiza_veri.py` → `GUNCEL_TALEP`'e eklenir, kitap yeniden
+üretilir ve kısa bir yanıt verilir: kim kaydedildi, eldeki uygun yerler, eski notlardaki yerler (o günün tarihi ve
+fiyatıyla), sorulabilecek kişiler. Notta rehberde bulunamayan bir ad geçerse aynı gün sorulur.
+
+## Eldeki verilerin aktarımı (24–26.11.2026)
+- Kaynaklar: Sadık'ın telefon rehberi (ilk dosya 4.172 satır; 26.11.2026'da Google "Kişiler" dökümüyle güncellendi),
+  Google Keep notları, WhatsApp (24 sohbet + ofis grubu). Hepsi tek bir "aktarım çalışma kitabı"nda; gerçek kişi verisi
+  içerdiği için depoda DEĞİL, proje dosyalarında: `satal-aktarim/satal-aktarim.xlsx` (asıl kopya). Betikler de orada
+  (`temizle.py`, `wa_ekle.py`, `hafiza.py`, `hafiza_veri.py`, `rehber2.py`, `rehber2_veri.py`, `ad_bilgi.py`); ilk
+  düzenin yedeği ve döküm `kaynak/` klasöründe. Kişilerin hepsi Sadık'ın adına girecek.
+- Kitabın sayfaları (26.11.2026 düzeni): Okuyun (açıklama, sorular ve yanıtlar), Kontrol listesi (açık sorular tek
+  sayfada: 60 "bu kim?", 9 hatırlanmayan, 71 teyit; Sadık yanıtını sohbette söyler ya da "Yanıtınız" sütununa yazar),
+  Kişiler (4.457, 4.313'ü aktarılacak; tipi, çalıştığı bölge ve tür, kim tanıştırdı, tanıştıran durumu, meslek, şirket,
+  şehir, seslenilecek ad, hitap; "Kontrol" yanıt bekleyenler, "Açıklama" yalnızca bilgi), Geçmiş ilgiler (358), Talepler
+  (7), Aranacaklar (37), Mülkler (323: 71 satışta, 242 arşiv, 10 satıldı; kimden geldi, getiren durumu, not tarihi),
+  Ofis grubu (266), Keep notları, WhatsApp, Alınmayanlar, Listeler.
 - Kurallar (Sadık): bir talep 6 aydan uzun geçerli olmaz (sınır 24.05.2026). Eski arayışlar talep değil "geçmiş ilgi",
   eski yerler "Arşiv" olur (Satal'da pasif: eşleştirmeye girmez, aramada ve getirenin kartında görünür).
 - Varsayımlar: alım gücü sütunu boş (notlarda güncel rakam yok, tahmin yazılmadı; Satal'da bu kişiler "parası
@@ -87,11 +123,12 @@ Satal'a eklenenler (şema: `crm/migrations/003_kontrol.sql`, ekran: `/kontrol`):
 - Ofis grubu sayfası Satal'a YÜKLENMEZ: oradaki yerler ve arayışlar danışmanların kendi müşterileri, çoğunun telefonu
   yok. Sadık'ın başvurusu için kitapta durur; Satal açılınca her danışman kendi kaydını kendi hesabına girer. Sadık'ın
   ve Recep Bey'in grupta paylaştığı önemli yerler Mülkler sayfasına da işlendi. Ofis içi özel sohbet aktarılmadı.
-- Yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma"). 25.11.2026'da gerçek kitapla
-  yerel deneme veritabanında denendi (sonra silindi): 4.040 kişi, 304 mülk, 235 geçmiş ilgi, 34 hatırlatma, 5 talep;
-  109 "kim tanıştırdı" bağlantısı; kontrol listesine 56 "bu kim?" sorusu (ayrıca 9 hatırlanmayan) ve 62 teyit notu;
-  37 satır bilerek alınmadı. İkinci yüklemede hiçbir şey çift yazılmadı; listeden yanıtlanan sorular üçüncü yüklemede
-  geri açılmadı. (Sayılar Sadık'ın altı yanıtı işlendikten sonraki denemeden.)
+- Yükleme: `crm/scripts/aktar.js` (adımlar `crm/KURULUM.md` → "Eldeki verileri aktarma"). 26.11.2026'da güncel kitapla
+  yerel deneme veritabanında denendi (sonra silindi): 4.313 kişi, 315 mülk, 339 geçmiş ilgi, 37 hatırlatma, 7 talep;
+  184 "kim tanıştırdı" bağlantısı; kontrol listesine 60 "bu kim?" sorusu (ayrıca 9 hatırlanmayan) ve 64 teyit notu;
+  171 satır bilerek alınmadı (144'ü kişi: cep numarası olmayanlar). Bir bilgisi eksik giren satır çıkmadı. İkinci
+  yüklemede hiçbir şey çift yazılmadı. (25.11.2026 denemesinde listeden yanıtlanan soruların sonraki yüklemede geri
+  açılmadığı da görülmüştü.)
 - Sorular: Okuyun sayfasında 16 soru vardı (notlarda yalnızca adıyla geçen kişiler kim, bazı yerler hangi ilçede).
   Altısını Sadık 25.11.2026'da yanıtladı (1, 2, 3, 4, 9, 12); kitaba işlendi: iki kişi rehberdeki kayıtlarına bağlandı,
   bir mahallenin ilçesi ve ofis grubundaki bir takma adın kime ait olduğu netleşti, iki adı hatırlamadı (bunlar
@@ -99,16 +136,19 @@ Satal'a eklenenler (şema: `crm/migrations/003_kontrol.sql`, ekran: `/kontrol`):
   başlığında, betikte `hafiza_veri.py` → `YANITLAR`. Yanıt gelince: `hafiza_veri.py` düzeltilir, `hafiza.py` yeniden
   çalıştırılır (girdi `kaynak/` klasöründeki ilk düzen), eski ve yeni kitap hücre hücre karşılaştırılır, yükleme
   yeniden denenir.
-- Bekleyen: Okuyun sayfasındaki 10 soru (5, 6, 7, 8, 10, 11, 13, 14, 15, 16); Sadık'a sohbette üçer üçer sorulur
-  (en çok kaydı kapatacak ve en yeni olanlar önce).
-- Rehber dosyası eski kalmış: Sadık'ın son aylarda kaydettiği kişiler içinde yok. 24 WhatsApp sohbetinin 13'ünde
-  telefon numarası yok (2'si ofis içi; 11'i rehber dosyasında bulunmayan kişiler). Kontrol listesindeki "bu kim?"
-  sorularının bir bölümü bu yüzden açık: kişi belli, numarası yok. 25.11.2026'da Sadık'tan, Keep'te yaptığı gibi
-  Google'dan "Kişiler"i indirip Drive'ındaki Takeout klasörüne bırakması ya da numaraları yazması istendi; aynı
-  mesajda iki "bu kim?" sorusu da soruldu. Yanıt bekleniyor. Dosya gelirse: rehberde olmayan numaralar yeni kişi
-  olarak eklenir, WhatsApp özetleri notlarına yazılır, getirdikleri yerler ve tanıştırdıkları kişiler bağlanır.
+- Bekleyen: Okuyun sayfasındaki 16 soru (5, 6, 7, 8, 10, 11, 13, 14, 15, 16 ve adlardan çıkan 17–22); Sadık'a sohbette
+  üçer üçer sorulur (en çok kaydı kapatacak ve en yeni olanlar önce). 25.11.2026'da iki "bu kim?" sorusu (6 ve 20),
+  26.11.2026'da üçü (17, 18, 19) soruldu; yanıt bekleniyor. Yanıtlanmış ya da "hatırlamıyorum" denmiş soru yeniden
+  sorulmaz.
+- Güncel rehber geldi (26.11.2026): Sadık Google "Kişiler" dökümünü yükledi. Eski dosyada orta sözcükleri düşmüş 1.215 ad
+  düzeltildi, 410 yeni kişi ve 41 eksik cep numarası eklendi. WhatsApp'ta yazışılan ama numarası eski dosyada olmayan
+  11 kişinin hepsi bulundu; sohbet özetleri kişi notlarına da yazıldı. Rehber yeniden gelirse: dosya `kaynak/`
+  klasörüne konur, `rehber2_veri.py`'deki `DOKUM` adı güncellenir, `hafiza.py` yeniden çalıştırılır (Kişi No'lar
+  değişmez; yeni kişiler sona eklenir).
 
 ## Kalıcı kurallar (kullanıcı söyledi)
+- Yalnızca cep numarası (26.11.2026): Sadık'ın sabit numaralara ihtiyacı yok; çalışma cep numaraları ve bu numaralara
+  WhatsApp'tan mesaj atmak üzerine kurulu. Aktarımda sabit numara tutulmaz, cep numarası olmayan kişi aktarılmaz.
 - Unutturma (25.11.2026): Sadık'ın notunda getiren ya da tanıştıran olarak geçen bir ad rehberde bulunamıyorsa o gün
   kendisine sorulur ve yanıtı kayda işlenir. Tahmin edilen bilgi sessizce kesin gibi yazılmaz; "Kontrol" olarak
   işaretlenir ki Sadık sonradan tek tek bakabilsin.

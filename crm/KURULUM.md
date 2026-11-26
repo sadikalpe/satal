@@ -46,14 +46,19 @@ Kitaptan okunan sayfalar ve Satal'daki karşılıkları:
 
 | Sayfa | Satal'da |
 |---|---|
-| Kişiler | Kişiler: tipi (yatırımcı / al-satçı / olursa alır), çalıştığı bölge ve tür, alım gücü, kim tanıştırdı, tanıştıran durumu |
+| Kişiler | Kişiler: tipi (yatırımcı / al-satçı / olursa alır), çalıştığı bölge ve tür, alım gücü, kim tanıştırdı, tanıştıran durumu, mesajda seslenilecek ad ve hitap |
 | Geçmiş ilgiler | Kişinin görüşme geçmişi (tarihi bilinmeyebilir ya da yalnızca yıl olabilir). Talep değildir. |
-| Talepler | Talepler. Kitaptaki tarih talebin söylendiği gün sayılır; "hâlâ arıyor mu?" ona göre sorulur. |
+| Talepler | Talepler. Kitaptaki tarih talebin söylendiği gün sayılır; "hâlâ arıyor mu?" ona göre sorulur. İlçe sütununa birden çok ilçe ("Urla; Çeşme"), tek ilçe yazılıysa mahalle sütununa birden çok mahalle yazılabilir. |
 | Aranacaklar | Geri arama hatırlatması; "Bugün kimi aramalıyım?" listesine düşer. |
 | Mülkler | Mülkler. Satışta → aktif, Arşiv → pasif (eşleştirmeye girmez), Satıldı → satıldı; kimden geldiği, getiren durumu. |
 
 Öbür sayfalar (Okuyun, Kontrol listesi, Ofis grubu, Keep notları, WhatsApp…) okunmaz. "Aktar" sütununda "Hayır" yazan
 satır girmez. Sütun düzeni: `src/lib/aktarim-hazirla.js`.
+
+Rehberde ad alanına bilgi de yazılmış olabilir ("Örnek Asansör Ahmet", "kiralık evi soran"). Mesajın doğru başlaması
+için Kişiler sayfasındaki "Seslenilecek ad" sütunu okunur: doluysa mesajda o ad kullanılır ("Merhaba Ahmet,"); boşsa
+adın ilk sözcüğü; "(yok)" yazıyorsa kayıtta kişi adı yoktur, kişi "Adını yazma" hitabıyla girer ve mesaj yalnızca
+"Merhaba," diye başlar. Sonradan kişi kartından değiştirilebilir.
 
 Kitaptaki açık sorular Satal'da danışmanın **Kontrol listesi**ne (`/kontrol`) düşer:
 - Kişiler, Geçmiş ilgiler ve Mülkler sayfasındaki "Kontrol" sütunu (bir varsayım ya da eksik) kaydın teyit notu olur;
@@ -66,8 +71,8 @@ yalnızca boş alanları dolar; Satal'da elle yazılanın üstüne yazılmaz), a
 yeniden açılmaz. Satal'da yanıtlanan kontrol sorusu da geri gelmez. Danışmanın Satal'da sildiği bir kişi ise yeniden
 yüklemede yeni kayıt olarak açılır.
 
-25.11.2026'da gerçek kitapla yerel bir deneme veritabanında denendi: 4.040 kişi, 303 mülk, 226 geçmiş ilgi,
-34 hatırlatma ve 5 talep 5 saniyede girdi; ikinci yüklemede hiçbir şey eklenmedi.
+26.11.2026'da güncel kitapla yerel bir deneme veritabanında denendi: 4.313 kişi, 315 mülk, 339 geçmiş ilgi,
+37 hatırlatma ve 7 talep girdi; ikinci yüklemede hiçbir şey eklenmedi.
 
 ## Yedek
 Her gece veritabanı ve belgeler yedeklenir, 30 gün saklanır:

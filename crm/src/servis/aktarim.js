@@ -48,8 +48,9 @@ export async function aktarimYaz(q, plan, { dosyaAdi = "", deneme = false } = {}
     const var_ = k.telefonlar.map((t) => kayitli.get(sahip + "|" + t)).find(Boolean);
     if (var_) {
       k.id = var_; sayac.mevcut++;
-      const m = await q.bir("select hitap_turu, sen_siz, potansiyel, yatirimci_tipi, alim_gucu_tutar, meslek, sirket, notlar, referans_notu from kisiler where id = $1", [var_]);
+      const m = await q.bir("select hitap_adi, hitap_turu, sen_siz, potansiyel, yatirimci_tipi, alim_gucu_tutar, meslek, sirket, notlar, referans_notu from kisiler where id = $1", [var_]);
       const d = {};
+      if (!m.hitap_adi && k.hitap_adi) d.hitap_adi = k.hitap_adi;
       if (!m.meslek && k.meslek) d.meslek = k.meslek;
       if (!m.sirket && k.sirket) d.sirket = k.sirket;
       if (!m.notlar && k.notlar) d.notlar = k.notlar;
@@ -65,10 +66,10 @@ export async function aktarimYaz(q, plan, { dosyaAdi = "", deneme = false } = {}
       }
     } else {
       k.id = (await q.bir(
-        `insert into kisiler (sahip_id, ad, hitap_turu, sen_siz, potansiyel, yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri,
+        `insert into kisiler (sahip_id, ad, hitap_adi, hitap_turu, sen_siz, potansiyel, yatirimci_tipi, calisma_bolgeleri, calisma_kategorileri,
            alim_gucu_tutar, alim_gucu_para, alim_gucu_usd, alim_gucu_kur, alim_gucu_tarih, meslek, sirket, notlar, referans_notu, referans_durumu, kontrol_notu)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) returning id`,
-        [sahip, k.ad, k.hitap_turu, k.sen_siz, k.potansiyel, k.yatirimci_tipi, JSON.stringify(k.calisma_bolgeleri), k.calisma_kategorileri,
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) returning id`,
+        [sahip, k.ad, k.hitap_adi || "", k.hitap_turu, k.sen_siz, k.potansiyel, k.yatirimci_tipi, JSON.stringify(k.calisma_bolgeleri), k.calisma_kategorileri,
           guc?.tutar ?? null, guc?.para ?? null, guc?.usd ?? null, guc?.kur ?? null, guc?.tarih ?? null, k.meslek, k.sirket, k.notlar, k.referans_notu, k.referans_durumu, k.kontrol_notu])).id;
       sayac.kisi++;
       if (k.kontrol_notu) sayac.teyit++;

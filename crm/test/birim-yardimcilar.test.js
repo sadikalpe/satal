@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { telefonNorm, telefonYaz, sayiOku, basHarfBuyut } from "../src/lib/metin.js";
 import { vcfOku, csvOku, dosyaOku, yuklemeHazirla } from "../src/lib/rehber-oku.js";
 import { tcmbOku } from "../src/servis/zamanli.js";
-import { hitapYaz, aliciMesaji, saticiMesaji } from "../src/alan/mesaj.js";
+import { hitapYaz, aliciMesaji, saticiMesaji, claudeIstegi } from "../src/alan/mesaj.js";
 
 test("telefon: farklı yazımlar tek biçime gelir", () => {
   for (const ham of ["0555 111 22 33", "+90 555 111 22 33", "5551112233", "0090 (555) 111-22-33", "905551112233"]) {
@@ -87,4 +87,12 @@ test("mesaj: hitap ve şablonlar; tam adres ve mal sahibi mesajda yer almaz", ()
   const s = saticiMesaji({ kisi: { ad: "Selim Malik", hitap_turu: "bey" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici });
   assert.match(s, /Selim Bey/);
   assert.doesNotMatch(s, /Burak|Gizli Sokak/);
+  // Kayıt kişi adıyla değil firma adı ya da tarifle duruyorsa mesaj adsız başlar
+  const adsiz = { ad: "Mavi Asansör", hitap_turu: "adsiz", hitap_adi: "Mavi" };
+  assert.equal(hitapYaz(adsiz), "");
+  assert.ok(aliciMesaji({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici }).startsWith("Merhaba,\n\nKarşıyaka"));
+  assert.ok(saticiMesaji({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici: { ...kullanici, mesaj_tonu: "resmi" } }).startsWith("İyi günler,\n\n"));
+  assert.ok(aliciMesaji({ kisi: { ...adsiz, dil: "en" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici }).startsWith("Hello,\n\n"));
+  assert.match(claudeIstegi({ kisi: adsiz, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici, yon: "aliciya" }).sistem, /adsız bir selamla/);
+  assert.match(claudeIstegi({ kisi: { ad: "Burak Alıcı", hitap_turu: "bey" }, mulk, yer: { ilce: "Karşıyaka", mahalle: "Bostanlı" }, kullanici, yon: "aliciya" }).sistem, /\{HITAP\} yer tutucusunu kullan/);
 });
